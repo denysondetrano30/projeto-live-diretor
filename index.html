@@ -683,7 +683,7 @@ var aoVivo = {
     a.innerHTML = Object.keys(PARA).map(function(k){ return '<button type="button" data-para="' + k + '" class="' + (aoVivo.para === k ? 'on' : '') + '">' + PARA[k] + '</button>'; }).join('');
     document.getElementById('lvResp').innerHTML = aoVivo.respostas.map(function(r, i){ return '<button type="button" class="resp" data-resp="' + i + '">' + esc(r) + '</button>'; }).join('') +
       '<button type="button" class="btn link small" data-lvedit>Editar</button>';
-    document.getElementById('lvParaNota').textContent = aoVivo.para === 'transmissao' ? 'Para a Transmissão: aparece no Projeto Live (OBS) quando essa parte chegar; por enquanto fica guardado aqui.' : '';
+    document.getElementById('lvParaNota').textContent = aoVivo.para === 'transmissao' ? 'Aparece no canto do Projeto Live (OBS), se ele estiver entrado na conta.' : '';
   },
   editar: function(){
     dialogo('Respostas prontas', 'Uma por linha:<textarea id="lvREd" style="width:100%;min-height:150px;margin-top:8px;background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:8px;color:var(--text)"></textarea>', 'Salvar', function(){});
