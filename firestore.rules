@@ -1,0 +1,21 @@
+rules_version = '2';
+
+// Projeto Live — regras do Firestore (Firebase › Firestore Database › Regras: cole tudo e Publique).
+// Cada culto só pode ser lido e mexido pela conta dona dele (campo "owner").
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /cultos/{cultoId} {
+      allow read, delete: if request.auth != null && resource.data.owner == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.owner == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.owner == request.auth.uid
+        && request.resource.data.owner == request.auth.uid;
+
+      // Histórico das versões publicadas.
+      match /versoes/{n} {
+        allow read, write: if request.auth != null
+          && get(/databases/$(database)/documents/cultos/$(cultoId)).data.owner == request.auth.uid;
+      }
+    }
+  }
+}

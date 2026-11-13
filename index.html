@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Projeto Live — Diretor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#141418; --panel:#1d1d23; --panel2:#23232b; --line:#2a2a33; --line2:#3a3a46;
+  --text:#ececf1; --muted:#a3a3ad; --blue:#3b6fe0; --blueSoft:#1f3566; --blueText:#dbe6ff;
+  --amber:#e8a33d; --green:#3ecf72; --red:#e5574d; --sel:#4c6fd1;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;font-size:14px}
+button,input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
+button{cursor:pointer}
+.app{display:flex;flex-direction:column;height:100%}
+header.top{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{font-weight:700;letter-spacing:1.5px;font-size:13px}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+.cols{display:grid;grid-template-columns:260px 1fr 360px;flex:1;min-height:0}
+.col{min-height:0;overflow:auto}
+nav.cultos{border-right:1px solid var(--line);padding:16px 12px;display:flex;flex-direction:column;gap:4px}
+.btn{background:var(--line);color:var(--text);border:0;border-radius:8px;padding:0 14px;min-height:40px;font-weight:600}
+.btn:hover{background:var(--line2)}
+.btn.primary{background:var(--blue);color:#fff}
+.btn.primary:hover{background:#4a7cf0}
+.btn.primary:disabled{background:#2a3350;color:#8b93ad;cursor:default}
+.btn.ghost{background:transparent;border:1px dashed var(--line2);color:var(--muted);font-weight:500}
+.btn.ghost:hover{color:var(--text);border-color:#55556a}
+.btn.link{background:transparent;color:var(--muted);font-weight:500;padding:0 6px}
+.btn.link:hover{color:var(--text)}
+.month{color:var(--muted);font-size:11px;letter-spacing:.6px;margin:14px 6px 4px;text-transform:uppercase}
+.culto{display:block;width:100%;text-align:left;background:transparent;border:1px solid transparent;border-radius:8px;padding:9px 11px}
+.culto:hover{background:var(--panel)}
+.culto.on{background:var(--panel2);border-color:var(--line2)}
+.culto .t{font-weight:600}
+.culto .s{color:var(--muted);font-size:12px;margin-top:2px}
+main.roteiro{padding:20px 26px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.head{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
+.titleIn{background:transparent;border:1px solid transparent;border-radius:8px;font-size:22px;font-weight:700;padding:4px 6px;margin-left:-7px;width:100%}
+.titleIn:hover{border-color:var(--line)}
+.titleIn:focus{outline:none;border-color:var(--sel);background:var(--panel)}
+.when{display:flex;gap:8px;align-items:center;margin-top:4px}
+.when input{background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:6px 8px;color-scheme:dark}
+.status{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+.dot{width:8px;height:8px;border-radius:4px;display:inline-block;flex:none}
+.hint{color:var(--muted);font-size:12px;letter-spacing:.3px}
+ol.itens{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.item{display:grid;grid-template-columns:20px 24px 22px 1fr auto;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 12px;cursor:pointer;user-select:none}
+.item:hover{border-color:var(--line2)}
+.item.on{background:var(--panel2);border-color:var(--sel)}
+.item.dragging{opacity:.35}
+.item.dropBefore{box-shadow:0 -3px 0 var(--sel)}
+.item.dropAfter{box-shadow:0 3px 0 var(--sel)}
+.grip{color:#6b6b78;cursor:grab;touch-action:none;display:flex;align-items:center;justify-content:center;height:28px}
+.num{color:var(--muted);text-align:right}
+.item .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .s{color:var(--muted);font-size:12px}
+.chip{border-radius:6px;padding:4px 9px;font-size:12px;white-space:nowrap;background:var(--line);color:var(--text)}
+.chip.letra{background:var(--blueSoft);color:var(--blueText)}
+.chip.midia{background:#3a2a14;color:#f2dfb0}
+.warnTxt{color:#f2dfb0}
+aside.editor{border-left:1px solid var(--line);padding:20px 18px;display:flex;flex-direction:column;gap:14px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{color:var(--muted);font-size:12px}
+.field input,.field select,.field textarea{background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:9px 10px;width:100%}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--sel)}
+.field textarea{min-height:220px;resize:vertical;line-height:1.55}
+.msg{font-size:12px;line-height:1.45}
+.ok{color:#b8f0cd}.bad{color:#ffb4ad}.warn{color:#f2dfb0}
+.empty{color:var(--muted);text-align:center;padding:40px 16px;line-height:1.6}
+.menu{position:fixed;z-index:50;background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:6px;min-width:190px;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.menu button{display:block;width:100%;text-align:left;background:transparent;border:0;border-radius:6px;padding:9px 12px;min-height:38px}
+.menu button:hover{background:var(--line)}
+.menu button.danger{color:#ffb4ad}
+.menu hr{border:0;border-top:1px solid var(--line2);margin:5px 4px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:12px 16px;z-index:60;max-width:min(520px,90vw);box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.dialogBg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px}
+.dialog{background:var(--panel2);border:1px solid var(--line2);border-radius:12px;padding:20px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:14px}
+.dialog .row{display:flex;gap:10px;justify-content:flex-end}
+.back{display:none}
+@media (max-width: 900px){
+  .cols{display:block;overflow:auto}
+  .app .col{display:none;overflow:visible}
+  .app[data-view="cultos"] nav.cultos{display:flex}
+  .app[data-view="roteiro"] main.roteiro{display:flex}
+  .app[data-view="item"] aside.editor{display:flex}
+  nav.cultos,aside.editor{border:0}
+  main.roteiro{padding:16px 14px 90px}
+  aside.editor{padding:16px 14px 40px}
+  .back{display:inline-flex;align-items:center}
+  .item{grid-template-columns:20px 22px 1fr;grid-template-rows:auto auto}
+  .item .icon{display:none}
+  .item .chip{grid-column:3;justify-self:start}
+  .pubBar{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:10px 14px 16px;display:flex;gap:10px;z-index:20}
+  .pubBar .btn{min-height:48px;flex:1}
+  .headPub{display:none}
+}
+@media (min-width: 901px){ .pubBar{display:none} }
+</style>
+</head>
+<body>
+<!-- Configuração do Firebase (só existe na página publicada no site; sem ela, modo de teste). -->
+<script src="firebase-config.js"></script>
+<div class="app" id="app" data-view="cultos">
+  <header class="top">
+    <div class="brand">PROJETO LIVE</div>
+    <div class="muted small">Diretor</div>
+    <div style="flex:1"></div>
+    <div class="muted small" id="modeNote">Modo de teste: os dados ficam só neste navegador</div>
+    <button class="btn link small" id="sair" style="display:none">Sair</button>
+  </header>
+  <div id="login" style="display:none;flex:1;align-items:center;justify-content:center;padding:20px">
+    <form id="loginForm" class="dialog" style="max-width:360px">
+      <div style="font-weight:700;font-size:18px">Entrar</div>
+      <div class="muted small">Conta do Projeto Live da sua igreja.</div>
+      <div class="field"><label for="lEmail">E-mail</label><input id="lEmail" type="email" autocomplete="username" required></div>
+      <div class="field"><label for="lSenha">Senha</label><input id="lSenha" type="password" autocomplete="current-password" required></div>
+      <div class="msg bad" id="lErro"></div>
+      <button class="btn primary" type="submit" style="min-height:44px">Entrar</button>
+    </form>
+  </div>
+  <div class="cols">
+    <nav class="col cultos" id="cultos" aria-label="Cultos"></nav>
+    <main class="col roteiro" id="roteiro"></main>
+    <aside class="col editor" id="editor" aria-label="Item escolhido"></aside>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------------------------------------------------------------------------
+ * Projeto Live — app do Diretor (fase de testes, sem servidor).
+ *
+ * O diretor monta o culto: nome, data, hora e o roteiro (músicas, leituras,
+ * imagens e vídeos), com o destino de cada item (Só telão / Telão + letra na
+ * live / Telão + imagem e som na live). Imagens e vídeos são links do Google
+ * Drive. "Publicar" guarda uma versão numerada (v1, v2...).
+ *
+ * Nesta fase os dados ficam no navegador (localStorage). O formato já é o que
+ * vai para o Firebase (Firestore): um documento por culto, com os itens e as
+ * versões publicadas. Trocar o "store" abaixo é o que liga o app no Firebase.
+ * ------------------------------------------------------------------------- */
+
+var KEY = 'projeto-live-diretor-v1';
+
+var TIPOS = {
+  musica: {nome: 'Música', destinos: ['letra', 'telao']},
+  texto:  {nome: 'Leitura ou texto', destinos: ['letra', 'telao']},
+  imagem: {nome: 'Imagem', destinos: ['telao', 'midia']},
+  video:  {nome: 'Vídeo', destinos: ['midia', 'telao']}
+};
+var DESTINOS = {
+  telao: {longo: 'Só telão', curto: 'Só telão'},
+  letra: {longo: 'Telão + letra na live', curto: 'Letra na live'},
+  midia: {longo: 'Telão + imagem e som na live', curto: 'Imagem e som na live'}
+};
+var MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+var DIAS = ['dom','seg','ter','qua','qui','sex','sáb'];
+var ICONES = {
+  musica: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a3a3ad" stroke-width="1.8"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+  texto:  '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a3a3ad" stroke-width="1.8"><path d="M4 5h11a3 3 0 0 1 3 3v11H7a3 3 0 0 1-3-3z"/><path d="M8 9h6M8 13h6"/></svg>',
+  imagem: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a3a3ad" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>',
+  video:  '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a3a3ad" stroke-width="1.8"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 10l4-2v8l-4-2"/></svg>'
+};
+var GRIP = '<svg aria-hidden="true" width="12" height="18" viewBox="0 0 12 18" fill="#6b6b78"><circle cx="3" cy="3" r="1.6"/><circle cx="9" cy="3" r="1.6"/><circle cx="3" cy="9" r="1.6"/><circle cx="9" cy="9" r="1.6"/><circle cx="3" cy="15" r="1.6"/><circle cx="9" cy="15" r="1.6"/></svg>';
+
+/* ---------------- dados ---------------- */
+
+var memoria = null; /* se o navegador não deixar guardar, fica só na memória */
+var store = {
+  load: function(){
+    try { var raw = localStorage.getItem(KEY); if (raw) return JSON.parse(raw); } catch (e) {}
+    return memoria || {cultos: []};
+  },
+  save: function(data){
+    memoria = data;
+    try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {
+      document.getElementById('modeNote').textContent = 'Este navegador não deixa guardar: os dados somem ao fechar';
+    }
+  }
+};
+
+var db = store.load();
+var ui = {cultoId: null, itemId: null, view: 'cultos'};
+try { var lembrado = JSON.parse(localStorage.getItem(KEY + '-ui') || 'null'); if (lembrado) { ui.cultoId = lembrado.cultoId; } } catch (e) {}
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function salvar(){
+  store.save(db);
+  try { localStorage.setItem(KEY + '-ui', JSON.stringify({cultoId: ui.cultoId})); } catch (e) {}
+  if (nuvem.user && ui.cultoId) nuvem.agendar(ui.cultoId);
+}
+
+/* ---------------- conta (Firebase) ----------------
+ * Com o arquivo firebase-config.js (só na página publicada no site), o app pede login e guarda
+ * os cultos no Firestore, coleção "cultos", um documento por culto (dono = a conta). A última
+ * versão publicada vai inteira no campo "ultima", que é o que a Projeção lê; o histórico das
+ * versões fica em cultos/<id>/versoes/<n>. Sem o arquivo, segue o modo de teste no navegador. */
+var FB_SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+var nuvem = {
+  user: null, fs: null, auth: null, m: null, timers: {},
+  agendar: function(id){
+    clearTimeout(nuvem.timers[id]);
+    aviso('Salvando…');
+    nuvem.timers[id] = setTimeout(function(){ nuvem.enviar(id); }, 700);
+  },
+  dados: function(c){
+    return {owner: nuvem.user.uid, nome: c.nome || '', data: c.data || '', hora: c.hora || '', itens: c.itens, ultima: ultima(c) || null, atualizadoEm: new Date().toISOString()};
+  },
+  enviar: function(id, depois){
+    var c = db.cultos.find(function(k){ return k.id === id; }); if (!c || !nuvem.user) return;
+    clearTimeout(nuvem.timers[id]);
+    nuvem.m.setDoc(nuvem.m.doc(nuvem.fs, 'cultos', id), nuvem.dados(c)).then(function(){ aviso('Salvo'); if (depois) depois(); }, function(e){ aviso('Sem conexão: salvo neste aparelho, envia quando voltar'); console.warn(e); });
+  },
+  versao: function(c, v){
+    if (!nuvem.user) return;
+    nuvem.m.setDoc(nuvem.m.doc(nuvem.fs, 'cultos', c.id, 'versoes', String(v.n)), {owner: nuvem.user.uid, n: v.n, em: v.em, retrato: v.retrato}).catch(function(e){ console.warn(e); });
+  },
+  apagar: function(id){
+    if (!nuvem.user) return;
+    nuvem.m.deleteDoc(nuvem.m.doc(nuvem.fs, 'cultos', id)).catch(function(e){ console.warn(e); });
+  }
+};
+function aviso(t){ var n = document.getElementById('modeNote'); if (n && nuvem.user) n.textContent = nuvem.user.email + ' · ' + t; }
+
+function telaLogin(mostrar){
+  document.getElementById('login').style.display = mostrar ? 'flex' : 'none';
+  document.querySelector('.cols').style.display = mostrar ? 'none' : '';
+  document.getElementById('sair').style.display = mostrar ? 'none' : '';
+}
+
+function iniciarNuvem(cfg){
+  telaLogin(true);
+  document.getElementById('modeNote').textContent = 'Conectando…';
+  Promise.all([import(FB_SDK + 'firebase-app.js'), import(FB_SDK + 'firebase-auth.js'), import(FB_SDK + 'firebase-firestore.js')]).then(function(mods){
+    var app = mods[0].initializeApp(cfg), A = mods[1], F = mods[2];
+    nuvem.m = F; nuvem.auth = A.getAuth(app);
+    try { nuvem.fs = F.initializeFirestore(app, {localCache: F.persistentLocalCache()}); } catch (e) { nuvem.fs = F.getFirestore(app); }
+    document.getElementById('modeNote').textContent = '';
+    document.getElementById('loginForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      var erro = document.getElementById('lErro'); erro.textContent = '';
+      A.signInWithEmailAndPassword(nuvem.auth, document.getElementById('lEmail').value.trim(), document.getElementById('lSenha').value).catch(function(err){
+        var c = String(err && err.code || '');
+        erro.textContent = /invalid-credential|wrong-password|user-not-found|invalid-email/.test(c) ? 'E-mail ou senha errados.' :
+          /network/.test(c) ? 'Sem internet agora.' : /too-many/.test(c) ? 'Muitas tentativas. Espere um pouco e tente de novo.' : 'Não deu para entrar (' + c + ').';
+      });
+    });
+    document.getElementById('sair').addEventListener('click', function(){ A.signOut(nuvem.auth); });
+    A.onAuthStateChanged(nuvem.auth, function(user){
+      nuvem.user = user;
+      if (!user) { db = {cultos: []}; ui.cultoId = null; ui.itemId = null; ui.view = 'cultos'; telaLogin(true); document.getElementById('modeNote').textContent = ''; render(); return; }
+      telaLogin(false); aviso('Carregando…');
+      F.getDocs(F.query(F.collection(nuvem.fs, 'cultos'), F.where('owner', '==', user.uid))).then(function(snap){
+        var lista = [];
+        snap.forEach(function(d){
+          var x = d.data();
+          lista.push({id: d.id, nome: x.nome || '', data: x.data || '', hora: x.hora || '', itens: x.itens || [], versoes: x.ultima ? [x.ultima] : []});
+        });
+        var teste = null;
+        try { teste = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
+        db = {cultos: lista};
+        if (!ui.cultoId || !culto()) ui.cultoId = null;
+        if (ui.cultoId && innerWidth > 900) ui.view = 'roteiro';
+        aviso('Salvo'); render();
+        /* Primeira vez na conta: oferece levar os cultos do modo de teste deste navegador. */
+        if (!lista.length && teste && teste.cultos && teste.cultos.length) {
+          dialogo('Levar os cultos de teste para a conta?', 'Este navegador tem ' + teste.cultos.length + (teste.cultos.length === 1 ? ' culto' : ' cultos') + ' do modo de teste.', 'Levar para a conta', function(){
+            teste.cultos.forEach(function(c){ db.cultos.push(c); nuvem.enviar(c.id, function(){ var u = ultima(c); if (u) nuvem.versao(c, u); }); });
+            render();
+          });
+        }
+      }, function(e){ aviso('Não deu para carregar (' + (e && e.code || 'erro') + ')'); console.warn(e); });
+    });
+  }, function(e){
+    document.getElementById('modeNote').textContent = 'Sem internet: não deu para abrir a conta';
+    console.warn(e);
+  });
+}
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function culto(){ return db.cultos.find(function(c){ return c.id === ui.cultoId; }) || null; }
+function item(){ var c = culto(); return c ? (c.itens.find(function(i){ return i.id === ui.itemId; }) || null) : null; }
+
+function proximoDomingo(){
+  var d = new Date(); d.setDate(d.getDate() + ((7 - d.getDay()) % 7 || 7));
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function parseData(s){ var p = (s || '').split('-'); return p.length === 3 ? new Date(+p[0], +p[1] - 1, +p[2]) : null; }
+function dataCurta(c){
+  var d = parseData(c.data); if (!d) return 'sem data';
+  return DIAS[d.getDay()] + ' ' + String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + (c.hora ? ' · ' + c.hora.replace(':00', 'h').replace(':', 'h') : '');
+}
+function quando(iso){
+  var d = new Date(iso);
+  return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + ' ' + String(d.getHours()).padStart(2, '0') + 'h' + String(d.getMinutes()).padStart(2, '0');
+}
+
+/* O que vai numa versão: o culto como está agora, sem as versões antigas. */
+function retrato(c){ return {nome: c.nome, data: c.data, hora: c.hora, itens: JSON.parse(JSON.stringify(c.itens))}; }
+function ultima(c){ return c.versoes.length ? c.versoes[c.versoes.length - 1] : null; }
+function mudou(c){ var u = ultima(c); return !u || JSON.stringify(u.retrato) !== JSON.stringify(retrato(c)); }
+function situacao(c){
+  var u = ultima(c);
+  if (!u) return {cor: '#6b6b78', texto: 'Rascunho · ainda não publicado', curto: 'rascunho'};
+  if (mudou(c)) return {cor: 'var(--amber)', texto: 'Alterações não publicadas · última versão: v' + u.n + ', ' + quando(u.em), curto: 'v' + u.n + ' + alterações'};
+  return {cor: 'var(--green)', texto: 'Publicado v' + u.n + ' · ' + quando(u.em), curto: 'v' + u.n + ' publicada'};
+}
+
+/* Link do Google Drive: tira o id do arquivo. Pasta não serve (a Projeção baixa um arquivo). */
+function lerDrive(link){
+  link = (link || '').trim();
+  if (!link) return {estado: 'vazio'};
+  if (!/^https?:\/\/(drive|docs)\.google\.com\//i.test(link)) return {estado: 'naoDrive'};
+  if (/\/folders\//.test(link)) return {estado: 'pasta'};
+  var m = link.match(/\/d\/([A-Za-z0-9_-]{15,})/) || link.match(/[?&]id=([A-Za-z0-9_-]{15,})/);
+  return m ? {estado: 'ok', id: m[1]} : {estado: 'naoDrive'};
+}
+function slides(texto){ return (texto || '').split(/\n\s*\n/).filter(function(s){ return s.trim(); }).length; }
+function resumo(i){
+  var t = TIPOS[i.tipo].nome;
+  if (i.tipo === 'musica' || i.tipo === 'texto') { var n = slides(i.letra); return t + ' · ' + (n ? n + (n === 1 ? ' slide' : ' slides') : (i.tipo === 'musica' ? 'da biblioteca da Projeção' : 'sem texto ainda')); }
+  var d = lerDrive(i.link);
+  if (d.estado === 'ok') return t + ' · arquivo do Drive';
+  return t + ' · <span class="warnTxt">falta o link do arquivo</span>';
+}
+
+/* ---------------- telas ---------------- */
+
+function render(){
+  document.getElementById('app').dataset.view = ui.view;
+  renderCultos(); renderRoteiro(); renderEditor();
+}
+
+function renderCultos(){
+  var el = document.getElementById('cultos');
+  var lista = db.cultos.slice().sort(function(a, b){ return (b.data || '').localeCompare(a.data || ''); });
+  var h = '<button class="btn" id="novoCulto" style="text-align:left;min-height:44px">+ Novo culto</button>';
+  var mes = null;
+  lista.forEach(function(c){
+    var d = parseData(c.data);
+    var m = d ? MESES[d.getMonth()] + ' ' + d.getFullYear() : 'sem data';
+    if (m !== mes) { mes = m; h += '<div class="month">' + esc(m) + '</div>'; }
+    h += '<button class="culto' + (c.id === ui.cultoId ? ' on' : '') + '" data-culto="' + c.id + '">' +
+      '<div class="t">' + esc(c.nome || 'Sem nome') + '</div>' +
+      '<div class="s">' + esc(dataCurta(c)) + ' · ' + esc(situacao(c).curto) + '</div></button>';
+  });
+  if (!lista.length) h += '<div class="empty small">Nenhum culto ainda.<br>Comece em "+ Novo culto".</div>';
+  el.innerHTML = h;
+}
+
+function renderRoteiro(){
+  var el = document.getElementById('roteiro');
+  var c = culto();
+  if (!c) { el.innerHTML = '<div class="empty">Escolha um culto à esquerda ou crie um novo.</div>'; return; }
+  var s = situacao(c);
+  var proxima = (ultima(c) ? ultima(c).n : 0) + 1;
+  var h = '<button class="btn link back" data-voltar="cultos">‹ Cultos</button>' +
+    '<div class="head"><div style="flex:1;min-width:240px">' +
+    '<input class="titleIn" id="cNome" aria-label="Nome do culto" value="' + esc(c.nome) + '" placeholder="Nome do culto">' +
+    '<div class="when"><input type="date" id="cData" aria-label="Data" value="' + esc(c.data) + '"><input type="time" id="cHora" aria-label="Hora" value="' + esc(c.hora) + '"></div></div>' +
+    '<div class="status" id="status"><span class="dot" style="background:' + s.cor + '"></span><span>' + esc(s.texto) + '</span></div>' +
+    (ultima(c) ? '<button class="btn headPub" data-copiar style="min-height:44px" title="Copia a última versão publicada para colar na Projeção">Copiar para a Projeção</button>' : '') +
+    '<button class="btn primary headPub" data-publicar ' + (mudou(c) ? '' : 'disabled') + ' style="min-height:44px;padding:0 20px">Publicar v' + proxima + '</button></div>' +
+    '<div class="hint">ROTEIRO · arraste pelo <span aria-hidden="true">⋮⋮</span> para mudar a ordem · botão direito (ou toque longo) para mais opções</div>' +
+    '<ol class="itens" id="itens">';
+  c.itens.forEach(function(i, idx){
+    h += '<li class="item' + (i.id === ui.itemId ? ' on' : '') + '" data-item="' + i.id + '">' +
+      '<span class="grip" data-grip title="Arraste para mudar a ordem">' + GRIP + '</span>' +
+      '<span class="num">' + (idx + 1) + '</span>' +
+      '<span class="icon">' + ICONES[i.tipo] + '</span>' +
+      '<div style="min-width:0"><div class="t">' + esc(i.titulo || TIPOS[i.tipo].nome) + '</div><div class="s">' + resumo(i) + '</div></div>' +
+      '<span class="chip ' + i.destino + '">' + DESTINOS[i.destino].curto + '</span></li>';
+  });
+  h += '</ol>';
+  if (!c.itens.length) h += '<div class="empty small">Roteiro vazio. Adicione a primeira música, leitura, imagem ou vídeo.</div>';
+  h += '<div><button class="btn ghost" id="addItem" style="min-height:44px">+ Adicionar ao roteiro</button></div>';
+  h += '<div class="pubBar">' + (ultima(c) ? '<button class="btn" data-copiar style="flex:0 0 auto">Copiar</button>' : '') + '<button class="btn primary" data-publicar ' + (mudou(c) ? '' : 'disabled') + '>Publicar v' + proxima + '</button></div>';
+  el.innerHTML = h;
+}
+
+/* Só a parte de cima e a linha do item mudam enquanto a pessoa digita (o campo não perde o foco). */
+function atualizarStatus(){
+  var c = culto(); if (!c) return;
+  var s = situacao(c), st = document.getElementById('status');
+  if (st) st.innerHTML = '<span class="dot" style="background:' + s.cor + '"></span><span>' + esc(s.texto) + '</span>';
+  var proxima = (ultima(c) ? ultima(c).n : 0) + 1;
+  document.querySelectorAll('[data-publicar]').forEach(function(b){ b.disabled = !mudou(c); b.textContent = 'Publicar v' + proxima; });
+  renderCultos();
+}
+function atualizarLinha(i){
+  var li = document.querySelector('[data-item="' + i.id + '"]'); if (!li) return;
+  li.querySelector('.t').textContent = i.titulo || TIPOS[i.tipo].nome;
+  li.querySelector('.s').innerHTML = resumo(i);
+  var chip = li.querySelector('.chip'); chip.className = 'chip ' + i.destino; chip.textContent = DESTINOS[i.destino].curto;
+}
+
+function renderEditor(){
+  var el = document.getElementById('editor');
+  var c = culto(), i = item();
+  if (!c || !i) { el.innerHTML = c ? '<div class="empty small">Escolha um item do roteiro para editar.</div>' : ''; return; }
+  var idx = c.itens.indexOf(i) + 1;
+  var h = '<button class="btn link back" data-voltar="roteiro">‹ Roteiro</button>' +
+    '<div class="muted small" style="letter-spacing:.5px">ITEM ' + idx + ' · ' + esc(TIPOS[i.tipo].nome.toUpperCase()) + '</div>' +
+    '<div class="field"><label for="iTitulo">Título</label><input id="iTitulo" value="' + esc(i.titulo) + '" placeholder="' + esc(TIPOS[i.tipo].nome) + '"></div>' +
+    '<div class="field"><label for="iDestino">Destino</label><select id="iDestino">';
+  TIPOS[i.tipo].destinos.forEach(function(d){ h += '<option value="' + d + '"' + (d === i.destino ? ' selected' : '') + '>' + DESTINOS[d].longo + '</option>'; });
+  h += '</select></div>';
+  if (i.tipo === 'musica' || i.tipo === 'texto') {
+    h += '<div class="field" style="flex:1"><label for="iLetra">' + (i.tipo === 'musica' ? 'Letra' : 'Texto') + ' · uma linha em branco separa os slides <span id="nSlides"></span></label>' +
+      '<textarea id="iLetra" placeholder="' + (i.tipo === 'musica' ? 'Se a música já está cadastrada na Projeção, deixe em branco: ela usa a letra da biblioteca pelo título. Para uma música nova, cole a letra aqui.' : 'Cole aqui. Deixe uma linha em branco entre um slide e outro.') + '">' + esc(i.letra) + '</textarea></div>';
+  } else {
+    h += '<div class="field"><label for="iLink">Link do arquivo no Google Drive</label><input id="iLink" inputmode="url" value="' + esc(i.link) + '" placeholder="https://drive.google.com/file/d/...">' +
+      '<div class="msg" id="linkMsg"></div>' +
+      '<div class="msg muted">No Drive: botão direito no arquivo › Compartilhar › Acesso geral: <b>Qualquer pessoa com o link</b>. Sem isso a Projeção não consegue baixar.</div></div>';
+  }
+  h += '<div class="field"><label for="iObs">Observação para o operador</label><input id="iObs" value="' + esc(i.obs) + '" placeholder="Ex.: repetir o refrão no fim"></div>';
+  el.innerHTML = h;
+  mostrarSlides(i); mostrarLink(i);
+}
+function mostrarSlides(i){
+  var n = document.getElementById('nSlides'); if (!n) return;
+  var k = slides(i.letra); n.textContent = k ? '(' + k + (k === 1 ? ' slide)' : ' slides)') : '';
+}
+function mostrarLink(i){
+  var m = document.getElementById('linkMsg'); if (!m) return;
+  var d = lerDrive(i.link);
+  var t = {
+    vazio: ['warn', 'Falta o link do arquivo.'],
+    ok: ['ok', 'Arquivo do Drive reconhecido.'],
+    pasta: ['bad', 'Isso é o link de uma pasta. Abra o arquivo e copie o link dele.'],
+    naoDrive: ['bad', 'Não parece um link de arquivo do Google Drive.']
+  }[d.estado];
+  m.className = 'msg ' + t[0]; m.textContent = t[1];
+}
+
+/* ---------------- ações ---------------- */
+
+function novoCulto(base){
+  var c = base ? JSON.parse(JSON.stringify(retrato(base))) : {nome: 'Culto de domingo', data: proximoDomingo(), hora: '19:00', itens: []};
+  c.id = uid(); c.versoes = [];
+  if (base) { c.nome = base.nome + ' (cópia)'; c.data = proximoDomingo(); c.itens.forEach(function(i){ i.id = uid(); }); }
+  db.cultos.push(c); ui.cultoId = c.id; ui.itemId = null; ui.view = 'roteiro';
+  salvar(); render();
+  var n = document.getElementById('cNome'); if (n) { n.focus(); n.select(); }
+}
+function novoItem(tipo){
+  var c = culto(); if (!c) return;
+  var i = {id: uid(), tipo: tipo, titulo: '', destino: TIPOS[tipo].destinos[0], letra: '', link: '', obs: ''};
+  c.itens.push(i); ui.itemId = i.id; ui.view = 'item';
+  salvar(); render();
+  var t = document.getElementById('iTitulo'); if (t) t.focus();
+}
+function publicar(){
+  var c = culto(); if (!c || !mudou(c)) return;
+  var faltando = c.itens.filter(function(i){ return (i.tipo === 'imagem' || i.tipo === 'video') && lerDrive(i.link).estado !== 'ok'; });
+  var fazer = function(){
+    var n = (ultima(c) ? ultima(c).n : 0) + 1;
+    c.versoes.push({n: n, em: new Date().toISOString(), retrato: retrato(c)});
+    salvar();
+    /* O histórico da versão só depois do culto estar salvo na conta (as regras conferem o dono nele). */
+    if (nuvem.user) nuvem.enviar(c.id, function(){ nuvem.versao(c, ultima(c)); });
+    render();
+    toast('v' + n + ' publicada. Quando o app estiver ligado ao Firebase, é aqui que a Projeção recebe a versão nova.');
+  };
+  if (faltando.length) {
+    dialogo('Publicar mesmo assim?', faltando.length + (faltando.length === 1 ? ' item está' : ' itens estão') + ' sem um link válido do Google Drive (' +
+      faltando.map(function(i){ return esc(i.titulo || TIPOS[i.tipo].nome); }).join(', ') + '). A Projeção vai avisar que falta arquivo.', 'Publicar', fazer);
+  } else fazer();
+}
+/* Enquanto não há servidor: a última versão publicada vira um texto para colar na Projeção
+ * ("Cultos do Diretor" › "Colar culto do Diretor"). É o mesmo conteúdo que vai para o Firebase. */
+function textoParaProjecao(c){
+  var u = ultima(c); if (!u) return '';
+  var r = u.retrato;
+  return 'PLCULTO1 ' + JSON.stringify({formato: 'projeto-live-culto', cultoId: c.id, nome: r.nome, data: r.data, hora: r.hora, versao: u.n, publicadaEm: u.em, itens: r.itens});
+}
+function copiarParaProjecao(){
+  var c = culto(); if (!c || !ultima(c)) return;
+  var texto = textoParaProjecao(c), n = ultima(c).n;
+  var aviso = mudou(c) ? ' Atenção: as alterações depois da v' + n + ' não vão junto; publique antes.' : '';
+  var manual = function(){
+    var bg = document.createElement('div'); bg.className = 'dialogBg';
+    bg.innerHTML = '<div class="dialog" role="dialog" aria-modal="true"><div style="font-weight:700;font-size:16px">Copie o texto abaixo</div>' +
+      '<div class="muted small">Selecione tudo, copie e cole na Projeção em "Cultos do Diretor".</div>' +
+      '<textarea readonly style="width:100%;min-height:140px;background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:8px;color:var(--text)"></textarea>' +
+      '<div class="row"><button class="btn primary" data-x>Pronto</button></div></div>';
+    document.body.appendChild(bg);
+    var ta = bg.querySelector('textarea'); ta.value = texto; ta.focus(); ta.select();
+    bg.querySelector('[data-x]').onclick = function(){ bg.remove(); };
+  };
+  try {
+    navigator.clipboard.writeText(texto).then(function(){
+      toast('v' + n + ' copiada. Na Projeção: Projetos › + › Cultos do Diretor › Colar culto do Diretor.' + aviso);
+    }, manual);
+  } catch (e) { manual(); }
+}
+
+function moverItem(id, para){
+  var c = culto(); var de = c.itens.findIndex(function(i){ return i.id === id; });
+  if (de < 0) return;
+  var it = c.itens.splice(de, 1)[0];
+  if (para > de) para--;
+  c.itens.splice(para, 0, it);
+  salvar(); renderRoteiro(); renderEditor(); atualizarStatus();
+}
+
+/* ---------------- menus, avisos ---------------- */
+
+var menuEl = null;
+function fecharMenu(){ if (menuEl) { menuEl.remove(); menuEl = null; } }
+function menu(x, y, opcoes){
+  fecharMenu();
+  menuEl = document.createElement('div'); menuEl.className = 'menu'; menuEl.setAttribute('role', 'menu');
+  opcoes.forEach(function(o){
+    if (o === '-') { menuEl.appendChild(document.createElement('hr')); return; }
+    var b = document.createElement('button'); b.textContent = o.t; b.setAttribute('role', 'menuitem');
+    if (o.perigo) b.className = 'danger';
+    b.addEventListener('click', function(){ fecharMenu(); o.f(); });
+    menuEl.appendChild(b);
+  });
+  document.body.appendChild(menuEl);
+  var r = menuEl.getBoundingClientRect();
+  menuEl.style.left = Math.max(8, Math.min(x, innerWidth - r.width - 8)) + 'px';
+  menuEl.style.top = Math.max(8, Math.min(y, innerHeight - r.height - 8)) + 'px';
+  menuEl.querySelector('button').focus();
+}
+function toast(texto){
+  var t = document.createElement('div'); t.className = 'toast'; t.textContent = texto;
+  document.body.appendChild(t); setTimeout(function(){ t.remove(); }, 4500);
+}
+function dialogo(titulo, html, ok, f){
+  var bg = document.createElement('div'); bg.className = 'dialogBg';
+  bg.innerHTML = '<div class="dialog" role="dialog" aria-modal="true"><div style="font-weight:700;font-size:16px">' + esc(titulo) + '</div><div class="muted" style="line-height:1.5">' + html + '</div>' +
+    '<div class="row"><button class="btn" data-x>Cancelar</button><button class="btn primary" data-ok>' + esc(ok) + '</button></div></div>';
+  document.body.appendChild(bg);
+  bg.querySelector('[data-x]').onclick = function(){ bg.remove(); };
+  bg.querySelector('[data-ok]').onclick = function(){ bg.remove(); f(); };
+  bg.addEventListener('click', function(e){ if (e.target === bg) bg.remove(); });
+  bg.querySelector('[data-ok]').focus();
+}
+
+function menuItem(id, x, y){
+  var c = culto(); var i = c.itens.find(function(k){ return k.id === id; }); if (!i) return;
+  menu(x, y, [
+    {t: 'Duplicar', f: function(){ var n = JSON.parse(JSON.stringify(i)); n.id = uid(); c.itens.splice(c.itens.indexOf(i) + 1, 0, n); ui.itemId = n.id; salvar(); render(); }},
+    '-',
+    {t: 'Tirar do roteiro', perigo: true, f: function(){ c.itens.splice(c.itens.indexOf(i), 1); if (ui.itemId === id) { ui.itemId = null; if (ui.view === 'item') ui.view = 'roteiro'; } salvar(); render(); }}
+  ]);
+}
+function menuCulto(id, x, y){
+  var c = db.cultos.find(function(k){ return k.id === id; }); if (!c) return;
+  menu(x, y, [
+    {t: 'Duplicar para o próximo domingo', f: function(){ novoCulto(c); }},
+    '-',
+    {t: 'Apagar culto', perigo: true, f: function(){
+      dialogo('Apagar este culto?', esc(c.nome) + ' · ' + esc(dataCurta(c)) + '. As versões publicadas somem junto.', 'Apagar', function(){
+        db.cultos.splice(db.cultos.indexOf(c), 1);
+        nuvem.apagar(id);
+        if (ui.cultoId === id) { ui.cultoId = null; ui.itemId = null; ui.view = 'cultos'; }
+        salvar(); render();
+      });
+    }}
+  ]);
+}
+
+/* ---------------- eventos ---------------- */
+
+document.addEventListener('click', function(e){
+  if (menuEl && !menuEl.contains(e.target)) fecharMenu();
+  var t = e.target;
+  if (t.closest('#novoCulto')) return novoCulto();
+  var cb = t.closest('[data-culto]');
+  if (cb) { ui.cultoId = cb.dataset.culto; ui.itemId = null; ui.view = 'roteiro'; salvar(); return render(); }
+  if (t.closest('[data-publicar]')) return publicar();
+  if (t.closest('[data-copiar]')) return copiarParaProjecao();
+  var v = t.closest('[data-voltar]');
+  if (v) { ui.view = v.dataset.voltar; if (ui.view === 'cultos') ui.itemId = null; return render(); }
+  if (t.closest('#addItem')) {
+    var r = t.closest('#addItem').getBoundingClientRect();
+    return menu(r.left, r.bottom + 6, Object.keys(TIPOS).map(function(k){ return {t: TIPOS[k].nome, f: function(){ novoItem(k); }}; }));
+  }
+  var li = t.closest('[data-item]');
+  if (li && !t.closest('[data-grip]')) { ui.itemId = li.dataset.item; ui.view = 'item'; renderRoteiro(); renderEditor(); document.getElementById('app').dataset.view = ui.view; }
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') fecharMenu(); });
+
+document.addEventListener('contextmenu', function(e){
+  var li = e.target.closest('[data-item]'), cb = e.target.closest('[data-culto]');
+  if (li) { e.preventDefault(); menuItem(li.dataset.item, e.clientX, e.clientY); }
+  else if (cb) { e.preventDefault(); menuCulto(cb.dataset.culto, e.clientX, e.clientY); }
+});
+
+/* Toque longo (celular) abre o mesmo menu do botão direito. */
+var longo = null;
+document.addEventListener('touchstart', function(e){
+  var li = e.target.closest('[data-item]'), cb = e.target.closest('[data-culto]');
+  if ((!li && !cb) || e.target.closest('[data-grip]')) return;
+  var p = e.touches[0];
+  longo = setTimeout(function(){
+    longo = null;
+    if (li) menuItem(li.dataset.item, p.clientX, p.clientY); else menuCulto(cb.dataset.culto, p.clientX, p.clientY);
+  }, 550);
+}, {passive: true});
+['touchend', 'touchmove', 'touchcancel'].forEach(function(n){ document.addEventListener(n, function(){ if (longo) { clearTimeout(longo); longo = null; } }, {passive: true}); });
+
+document.addEventListener('input', function(e){
+  var c = culto(); if (!c) return;
+  var id = e.target.id, i = item();
+  if (id === 'cNome') c.nome = e.target.value;
+  else if (id === 'cData') c.data = e.target.value;
+  else if (id === 'cHora') c.hora = e.target.value;
+  else if (i && id === 'iTitulo') i.titulo = e.target.value;
+  else if (i && id === 'iLetra') { i.letra = e.target.value; mostrarSlides(i); }
+  else if (i && id === 'iLink') { i.link = e.target.value.trim(); mostrarLink(i); }
+  else if (i && id === 'iObs') i.obs = e.target.value;
+  else return;
+  salvar();
+  if (i && id.charAt(0) === 'i') atualizarLinha(i);
+  atualizarStatus();
+});
+document.addEventListener('change', function(e){
+  var i = item();
+  if (i && e.target.id === 'iDestino') { i.destino = e.target.value; salvar(); atualizarLinha(i); atualizarStatus(); }
+});
+
+/* Arrastar pelo ⋮⋮ (mouse e dedo): mostra a linha onde o item vai cair. */
+var arrasto = null;
+document.addEventListener('pointerdown', function(e){
+  var g = e.target.closest('[data-grip]'); if (!g) return;
+  var li = g.closest('[data-item]'); e.preventDefault();
+  arrasto = {id: li.dataset.item, li: li, alvo: null, depois: false};
+  li.classList.add('dragging');
+  try { g.setPointerCapture(e.pointerId); } catch (x) {}
+});
+document.addEventListener('pointermove', function(e){
+  if (!arrasto) return;
+  document.querySelectorAll('.dropBefore,.dropAfter').forEach(function(n){ n.classList.remove('dropBefore', 'dropAfter'); });
+  var lis = Array.prototype.slice.call(document.querySelectorAll('#itens [data-item]'));
+  var alvo = null, depois = false;
+  lis.forEach(function(n){ var r = n.getBoundingClientRect(); if (e.clientY >= r.top - 3 && e.clientY <= r.bottom + 3) { alvo = n; depois = e.clientY > r.top + r.height / 2; } });
+  if (!alvo && lis.length) { var ult = lis[lis.length - 1]; if (e.clientY > ult.getBoundingClientRect().bottom) { alvo = ult; depois = true; } }
+  if (!alvo && lis.length) { var pri = lis[0]; if (e.clientY < pri.getBoundingClientRect().top) { alvo = pri; depois = false; } }
+  arrasto.alvo = alvo; arrasto.depois = depois;
+  if (alvo && alvo !== arrasto.li) alvo.classList.add(depois ? 'dropAfter' : 'dropBefore');
+});
+function fimArrasto(){
+  if (!arrasto) return;
+  var a = arrasto; arrasto = null;
+  a.li.classList.remove('dragging');
+  document.querySelectorAll('.dropBefore,.dropAfter').forEach(function(n){ n.classList.remove('dropBefore', 'dropAfter'); });
+  if (!a.alvo || a.alvo === a.li) return;
+  var c = culto();
+  var para = c.itens.findIndex(function(i){ return i.id === a.alvo.dataset.item; }) + (a.depois ? 1 : 0);
+  moverItem(a.id, para);
+}
+document.addEventListener('pointerup', fimArrasto);
+document.addEventListener('pointercancel', fimArrasto);
+
+var cfg = window.PL_FIREBASE;
+if (cfg && cfg.apiKey && cfg.projectId) {
+  /* Na conta, o que vale é o que está no Firestore (o cache do modo de teste não entra). */
+  db = {cultos: []};
+  store.save = function(){};
+  iniciarNuvem(cfg);
+} else {
+  if (ui.cultoId && culto() && innerWidth > 900) ui.view = 'roteiro';
+  else if (!culto()) ui.cultoId = null;
+  render();
+}
+})();
+</script>
+</body>
+</html>
