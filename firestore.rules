@@ -17,5 +17,27 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/cultos/$(cultoId)).data.owner == request.auth.uid;
       }
     }
+
+    // Culto ao vivo: o que está no telão agora (a Projeção escreve) e os recados e sugestões.
+    match /aoVivo/{cultoId} {
+      allow read: if request.auth != null && resource.data.owner == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.owner == request.auth.uid
+        && request.resource.data.owner == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.owner == request.auth.uid;
+
+      match /eventos/{id} {
+        allow read, update: if request.auth != null
+          && get(/databases/$(database)/documents/aoVivo/$(cultoId)).data.owner == request.auth.uid;
+        allow create: if request.auth != null
+          && request.resource.data.owner == request.auth.uid
+          && get(/databases/$(database)/documents/aoVivo/$(cultoId)).data.owner == request.auth.uid;
+      }
+    }
+
+    // Preferências de cada conta (as respostas prontas do diretor).
+    match /perfis/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
   }
 }

@@ -101,6 +101,29 @@ aside.editor{border-left:1px solid var(--line);padding:20px 18px;display:flex;fl
   .headPub{display:none}
 }
 @media (min-width: 901px){ .pubBar{display:none} }
+/* Ao vivo */
+.live{position:fixed;inset:0;background:var(--bg);z-index:40;display:flex;flex-direction:column;overflow:auto}
+.live .bar{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:2}
+.live .bar .t{font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.live .pulse{width:8px;height:8px;border-radius:4px;background:var(--red);box-shadow:0 0 0 4px rgba(229,87,77,.2)}
+.live .wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;padding:16px;max-width:1100px;width:100%;margin:0 auto}
+.live .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.live .lbl{color:var(--muted);font-size:11px;letter-spacing:.6px;text-transform:uppercase}
+.live .agora .big{font-size:22px;font-weight:700;line-height:1.25}
+.live .agora .next{color:var(--muted);font-size:13px}
+.live .chips{display:flex;flex-wrap:wrap;gap:8px}
+.live .chips button{background:var(--line);border:0;border-radius:18px;padding:0 14px;min-height:38px;font-weight:600}
+.live .chips button.on{background:var(--blue);color:#fff}
+.live .chips button.resp{background:var(--panel2);border:1px solid var(--line2)}
+.live .send{display:flex;gap:8px}
+.live .send input,.live .field input,.live .field select{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:9px 10px;width:100%;min-height:42px}
+.live .thread{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto}
+.live .m{background:var(--panel2);border-radius:10px;padding:8px 11px;max-width:88%;line-height:1.4}
+.live .m.eu{align-self:flex-end;background:var(--blueSoft);color:var(--blueText)}
+.live .m .w{font-size:11px;opacity:.7;margin-bottom:2px}
+.live .sug{display:flex;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding-top:8px;font-size:13px}
+.live .full{grid-column:1/-1}
+@media (max-width: 900px){ .live .wrap{grid-template-columns:1fr;padding:12px} }
 </style>
 </head>
 <body>
@@ -129,6 +152,7 @@ aside.editor{border-left:1px solid var(--line);padding:20px 18px;display:flex;fl
     <main class="col roteiro" id="roteiro"></main>
     <aside class="col editor" id="editor" aria-label="Item escolhido"></aside>
   </div>
+  <section class="live" id="aovivo" style="display:none" aria-label="Culto ao vivo"></section>
 </div>
 
 <script>
@@ -256,7 +280,7 @@ function iniciarNuvem(cfg){
     document.getElementById('sair').addEventListener('click', function(){ A.signOut(nuvem.auth); });
     A.onAuthStateChanged(nuvem.auth, function(user){
       nuvem.user = user;
-      if (!user) { db = {cultos: []}; ui.cultoId = null; ui.itemId = null; ui.view = 'cultos'; telaLogin(true); document.getElementById('modeNote').textContent = ''; render(); return; }
+      if (!user) { aoVivo.fechar(); db = {cultos: []}; ui.cultoId = null; ui.itemId = null; ui.view = 'cultos'; telaLogin(true); document.getElementById('modeNote').textContent = ''; render(); return; }
       telaLogin(false); aviso('Carregando…');
       F.getDocs(F.query(F.collection(nuvem.fs, 'cultos'), F.where('owner', '==', user.uid))).then(function(snap){
         var lista = [];
@@ -366,6 +390,7 @@ function renderRoteiro(){
     '<input class="titleIn" id="cNome" aria-label="Nome do culto" value="' + esc(c.nome) + '" placeholder="Nome do culto">' +
     '<div class="when"><input type="date" id="cData" aria-label="Data" value="' + esc(c.data) + '"><input type="time" id="cHora" aria-label="Hora" value="' + esc(c.hora) + '"></div></div>' +
     '<div class="status" id="status"><span class="dot" style="background:' + s.cor + '"></span><span>' + esc(s.texto) + '</span></div>' +
+    (nuvem.user && ultima(c) ? '<button class="btn headPub" data-aovivo style="min-height:44px"><span class="dot" style="background:var(--red);margin-right:6px"></span>Ao vivo</button>' : '') +
     (ultima(c) ? '<button class="btn headPub" data-copiar style="min-height:44px" title="Copia a última versão publicada para colar na Projeção">Copiar para a Projeção</button>' : '') +
     '<button class="btn primary headPub" data-publicar ' + (mudou(c) ? '' : 'disabled') + ' style="min-height:44px;padding:0 20px">Publicar v' + proxima + '</button></div>' +
     '<div class="hint">ROTEIRO · arraste pelo <span aria-hidden="true">⋮⋮</span> para mudar a ordem · botão direito (ou toque longo) para mais opções</div>' +
@@ -381,7 +406,7 @@ function renderRoteiro(){
   h += '</ol>';
   if (!c.itens.length) h += '<div class="empty small">Roteiro vazio. Adicione a primeira música, leitura, imagem ou vídeo.</div>';
   h += '<div><button class="btn ghost" id="addItem" style="min-height:44px">+ Adicionar ao roteiro</button></div>';
-  h += '<div class="pubBar">' + (ultima(c) ? '<button class="btn" data-copiar style="flex:0 0 auto">Copiar</button>' : '') + '<button class="btn primary" data-publicar ' + (mudou(c) ? '' : 'disabled') + '>Publicar v' + proxima + '</button></div>';
+  h += '<div class="pubBar">' + (nuvem.user && ultima(c) ? '<button class="btn" data-aovivo style="flex:0 0 auto">Ao vivo</button>' : (ultima(c) ? '<button class="btn" data-copiar style="flex:0 0 auto">Copiar</button>' : '')) + '<button class="btn primary" data-publicar ' + (mudou(c) ? '' : 'disabled') + '>Publicar v' + proxima + '</button></div>';
   el.innerHTML = h;
 }
 
@@ -570,6 +595,163 @@ function menuCulto(id, x, y){
   ]);
 }
 
+
+/* ---------------- ao vivo (bloco 6) ----------------
+ * Durante o culto, pela conta:
+ * - "Agora no telão": a Projeção escreve em aoVivo/<culto>.agora o item que está no telão;
+ * - recados: o diretor manda para Todos, Projeção ou Transmissão (respostas prontas ou texto);
+ *   a resposta da Projeção aparece na conversa;
+ * - sugestões de mídia: link do Drive + onde entra; a Projeção baixa e o operador insere ou descarta.
+ * Tudo fica em aoVivo/<culto>/eventos. */
+var RESPOSTAS = ['Próximo item', 'Espera', 'Plano geral', 'Volta pra letra'];
+var PARA = {todos: 'Todos', projecao: 'Projeção', transmissao: 'Transmissão'};
+var ESTADO = {enviada: 'Enviada, esperando a Projeção', baixando: 'A Projeção está baixando', na_fila: 'Pronta na Projeção, o operador decide', inserida: 'Inserida no culto', descartada: 'O operador descartou', erro: 'Não deu'};
+var aoVivo = {
+  id: null, agora: null, eventos: [], para: 'todos', respostas: RESPOSTAS.slice(), parar: [], relogio: null,
+  abrir: function(){
+    var c = culto(); if (!c || !nuvem.user) return;
+    var F = nuvem.m, fs = nuvem.fs, uidU = nuvem.user.uid;
+    aoVivo.fechar();
+    aoVivo.id = c.id; aoVivo.agora = null; aoVivo.eventos = [];
+    var el = document.getElementById('aovivo');
+    el.style.display = 'flex';
+    el.innerHTML = '<div class="bar"><button class="btn link" data-lvfechar>‹ Roteiro</button><span class="pulse"></span><span class="t">Ao vivo · ' + esc(c.nome || 'Culto') + '</span><span class="muted small" id="lvNet"></span></div>' +
+      '<div class="wrap">' +
+      '<div class="card agora full" id="lvAgora"></div>' +
+      '<div class="card"><div class="lbl">Recados</div>' +
+        '<div class="chips" id="lvPara"></div>' +
+        '<div class="chips" id="lvResp"></div>' +
+        '<form class="send" id="lvForm"><input id="lvTexto" placeholder="Escreva um recado" autocomplete="off"><button class="btn primary">Enviar</button></form>' +
+        '<div class="muted small" id="lvParaNota"></div>' +
+        '<div class="thread" id="lvThread"></div></div>' +
+      '<div class="card"><div class="lbl">Sugerir mídia</div>' +
+        '<div class="field"><input id="lvSTitulo" placeholder="Nome (ex.: Vídeo da campanha)"></div>' +
+        '<div class="field"><input id="lvSLink" inputmode="url" placeholder="Link do Google Drive"><div class="msg" id="lvSMsg"></div></div>' +
+        '<div class="field"><select id="lvSPos"></select></div>' +
+        '<button class="btn primary" id="lvSEnviar">Enviar para a Projeção</button>' +
+        '<div id="lvSug"></div></div>' +
+      '</div>';
+    aoVivo.chips(); aoVivo.posicoes(); aoVivo.desenhar();
+    document.getElementById('lvForm').addEventListener('submit', function(e){ e.preventDefault(); var i = document.getElementById('lvTexto'); aoVivo.recado(i.value); i.value = ''; });
+    document.getElementById('lvSLink').addEventListener('input', function(e){
+      var r = lerDrive(e.target.value.trim()), m = document.getElementById('lvSMsg');
+      m.className = 'msg ' + (r.estado === 'ok' ? 'ok' : e.target.value.trim() ? 'bad' : '');
+      m.textContent = {ok: 'Link do Drive certo. Lembre: compartilhado como "Qualquer pessoa com o link".', pasta: 'Isso é uma pasta; abra o arquivo e copie o link dele.', naoDrive: 'Não parece um link de arquivo do Google Drive.', vazio: ''}[r.estado] || '';
+    });
+    document.getElementById('lvSEnviar').addEventListener('click', aoVivo.sugerir);
+    el.addEventListener('click', aoVivo.clique);
+    aoVivo.relogio = setInterval(aoVivo.desenharAgora, 5000);
+
+    var ref = F.doc(fs, 'aoVivo', c.id);
+    document.getElementById('lvNet').textContent = 'Conectando…';
+    F.setDoc(ref, {owner: uidU}, {merge: true}).then(function(){
+      if (aoVivo.id !== c.id) return;
+      aoVivo.parar.push(F.onSnapshot(ref, {includeMetadataChanges: true}, function(d){
+        var x = d.data() || {};
+        aoVivo.agora = x.agora || null;
+        document.getElementById('lvNet').textContent = d.metadata.fromCache ? 'Sem internet' : '';
+        aoVivo.desenharAgora(); aoVivo.posicoes();
+      }, function(e){ console.warn(e); document.getElementById('lvNet').textContent = 'Sem permissão (veja as regras)'; }));
+      var desde = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+      var q = F.query(F.collection(fs, 'aoVivo', c.id, 'eventos'), F.where('em', '>', desde), F.orderBy('em'));
+      aoVivo.parar.push(F.onSnapshot(q, function(snap){
+        var lista = []; snap.forEach(function(d){ var x = d.data(); x.id = d.id; lista.push(x); });
+        aoVivo.eventos = lista; aoVivo.desenhar();
+      }, function(e){ console.warn(e); }));
+    }, function(e){ console.warn(e); document.getElementById('lvNet').textContent = 'Sem permissão (veja as regras)'; });
+    F.getDoc(F.doc(fs, 'perfis', uidU)).then(function(d){
+      var r = d.exists() && d.data().respostas;
+      if (Array.isArray(r) && r.length) { aoVivo.respostas = r; aoVivo.chips(); }
+    }, function(){});
+  },
+  fechar: function(){
+    aoVivo.parar.forEach(function(f){ try { f(); } catch (e) {} });
+    aoVivo.parar = []; clearInterval(aoVivo.relogio); aoVivo.id = null;
+    var el = document.getElementById('aovivo');
+    var novo = el.cloneNode(false); novo.style.display = 'none'; /* troca o elemento: some com os ouvintes de clique */
+    el.parentNode.replaceChild(novo, el);
+  },
+  clique: function(e){
+    var t = e.target;
+    if (t.closest('[data-lvfechar]')) return aoVivo.fechar();
+    var p = t.closest('[data-para]'); if (p) { aoVivo.para = p.dataset.para; return aoVivo.chips(); }
+    var r = t.closest('[data-resp]'); if (r) return aoVivo.recado(aoVivo.respostas[+r.dataset.resp]);
+    if (t.closest('[data-lvedit]')) return aoVivo.editar();
+  },
+  chips: function(){
+    var a = document.getElementById('lvPara'); if (!a) return;
+    a.innerHTML = Object.keys(PARA).map(function(k){ return '<button type="button" data-para="' + k + '" class="' + (aoVivo.para === k ? 'on' : '') + '">' + PARA[k] + '</button>'; }).join('');
+    document.getElementById('lvResp').innerHTML = aoVivo.respostas.map(function(r, i){ return '<button type="button" class="resp" data-resp="' + i + '">' + esc(r) + '</button>'; }).join('') +
+      '<button type="button" class="btn link small" data-lvedit>Editar</button>';
+    document.getElementById('lvParaNota').textContent = aoVivo.para === 'transmissao' ? 'Para a Transmissão: aparece no Projeto Live (OBS) quando essa parte chegar; por enquanto fica guardado aqui.' : '';
+  },
+  editar: function(){
+    dialogo('Respostas prontas', 'Uma por linha:<textarea id="lvREd" style="width:100%;min-height:150px;margin-top:8px;background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:8px;color:var(--text)"></textarea>', 'Salvar', function(){});
+    var ta = document.getElementById('lvREd'); ta.value = aoVivo.respostas.join('\n');
+    var ok = ta.closest('.dialog').querySelector('[data-ok]');
+    ok.onclick = function(){
+      var lista = ta.value.split('\n').map(function(x){ return x.trim(); }).filter(Boolean).slice(0, 12);
+      aoVivo.respostas = lista.length ? lista : RESPOSTAS.slice();
+      ta.closest('.dialogBg').remove(); aoVivo.chips();
+      nuvem.m.setDoc(nuvem.m.doc(nuvem.fs, 'perfis', nuvem.user.uid), {respostas: aoVivo.respostas}, {merge: true}).catch(function(e){ console.warn(e); });
+    };
+  },
+  enviar: function(evento){
+    if (!aoVivo.id || !nuvem.user) return;
+    evento.owner = nuvem.user.uid; evento.de = 'diretor'; evento.em = new Date().toISOString();
+    nuvem.m.addDoc(nuvem.m.collection(nuvem.fs, 'aoVivo', aoVivo.id, 'eventos'), evento).catch(function(e){ console.warn(e); toast('Não deu para enviar (' + (e && e.code || 'erro') + ')'); });
+  },
+  recado: function(texto){
+    texto = String(texto || '').trim(); if (!texto) return;
+    aoVivo.enviar({tipo: 'recado', para: aoVivo.para, texto: texto});
+  },
+  sugerir: function(){
+    var link = document.getElementById('lvSLink').value.trim();
+    if (lerDrive(link).estado !== 'ok') { toast('Cole um link válido do Google Drive.'); return; }
+    var titulo = document.getElementById('lvSTitulo').value.trim() || 'Mídia do diretor';
+    var v = document.getElementById('lvSPos').value, posicao = {tipo: 'quandoDer'};
+    if (v === 'atual') posicao = {tipo: 'depoisAtual', itemId: aoVivo.agora && aoVivo.agora.itemId || null, titulo: aoVivo.agora && aoVivo.agora.titulo || ''};
+    else if (v.indexOf('i:') === 0) { var it = (culto() || {itens: []}).itens.find(function(i){ return i.id === v.slice(2); }); posicao = {tipo: 'depoisItem', itemId: v.slice(2), titulo: it ? (it.titulo || TIPOS[it.tipo].nome) : ''}; }
+    aoVivo.enviar({tipo: 'sugestao', para: 'projecao', titulo: titulo, link: link, posicao: posicao, estado: 'enviada'});
+    document.getElementById('lvSTitulo').value = ''; document.getElementById('lvSLink').value = ''; document.getElementById('lvSMsg').textContent = '';
+    toast('Sugestão enviada. A Projeção baixa e o operador decide.');
+  },
+  posicoes: function(){
+    var s = document.getElementById('lvSPos'); if (!s) return;
+    var atual = s.value, c = culto();
+    var h = '<option value="atual">Logo depois do que está no telão</option><option value="livre">Quando der (o operador escolhe)</option>';
+    (c ? c.itens : []).forEach(function(i, n){ h += '<option value="i:' + i.id + '">Depois de ' + (n + 1) + '. ' + esc(i.titulo || TIPOS[i.tipo].nome) + '</option>'; });
+    s.innerHTML = h; if (atual) s.value = atual;
+  },
+  desenharAgora: function(){
+    var el = document.getElementById('lvAgora'); if (!el) return;
+    var a = aoVivo.agora, c = culto();
+    if (!a) { el.innerHTML = '<div class="lbl">Agora no telão</div><div class="muted">Esperando a Projeção abrir este culto (Cultos do Diretor › Abrir projeto) e escolher um item.</div>'; return; }
+    var prox = c && a.indice ? c.itens[a.indice] : null;
+    var seg = a.em ? Math.max(0, Math.round((Date.now() - Date.parse(a.em)) / 1000)) : null;
+    el.innerHTML = '<div class="lbl">Agora no telão' + (seg !== null ? ' · há ' + (seg < 60 ? seg + ' s' : Math.round(seg / 60) + ' min') : '') + '</div>' +
+      '<div class="big">' + (a.indice ? a.indice + '. ' : '') + esc(a.titulo || 'Item extra') + '</div>' +
+      (prox ? '<div class="next">Depois: ' + esc(prox.titulo || TIPOS[prox.tipo].nome) + '</div>' : (a.indice ? '' : '<div class="next">Item que não está no roteiro</div>'));
+  },
+  desenhar: function(){
+    aoVivo.desenharAgora();
+    var th = document.getElementById('lvThread'); if (!th) return;
+    var rec = aoVivo.eventos.filter(function(e){ return e.tipo === 'recado'; }).slice(-40);
+    th.innerHTML = rec.length ? rec.map(function(e){
+      var eu = e.de === 'diretor';
+      var quem = eu ? 'Você → ' + (PARA[e.para] || e.para) : (e.de === 'projecao' ? 'Projeção' : e.de === 'transmissao' ? 'Transmissão' : e.de);
+      return '<div class="m' + (eu ? ' eu' : '') + '"><div class="w">' + esc(quem) + ' · ' + esc(hora(e.em)) + '</div>' + esc(e.texto) + '</div>';
+    }).join('') : '<div class="muted small">Nenhum recado ainda.</div>';
+    th.scrollTop = th.scrollHeight;
+    var sg = aoVivo.eventos.filter(function(e){ return e.tipo === 'sugestao'; }).reverse();
+    document.getElementById('lvSug').innerHTML = sg.map(function(e){
+      var cor = e.estado === 'inserida' ? 'ok' : e.estado === 'erro' || e.estado === 'descartada' ? 'bad' : 'warn';
+      return '<div class="sug"><span>' + esc(e.titulo) + '</span><span class="' + cor + '">' + esc(ESTADO[e.estado] || e.estado) + (e.estado === 'erro' && e.motivo ? ': ' + esc(e.motivo) : '') + '</span></div>';
+    }).join('');
+  }
+};
+function hora(iso){ var d = new Date(iso); return isNaN(d) ? '' : String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+
 /* ---------------- eventos ---------------- */
 
 document.addEventListener('click', function(e){
@@ -580,6 +762,7 @@ document.addEventListener('click', function(e){
   if (cb) { ui.cultoId = cb.dataset.culto; ui.itemId = null; ui.view = 'roteiro'; salvar(); return render(); }
   if (t.closest('[data-publicar]')) return publicar();
   if (t.closest('[data-copiar]')) return copiarParaProjecao();
+  if (t.closest('[data-aovivo]')) return aoVivo.abrir();
   var v = t.closest('[data-voltar]');
   if (v) { ui.view = v.dataset.voltar; if (ui.view === 'cultos') ui.itemId = null; return render(); }
   if (t.closest('#addItem')) {
