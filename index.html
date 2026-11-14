@@ -114,6 +114,9 @@ aside.editor{border-left:1px solid var(--line);padding:20px 18px;display:flex;fl
 .escolhida{display:flex;gap:12px;align-items:flex-start;background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:10px}
 .escolhida .capa{width:64px;height:64px}
 .previa{white-space:pre-wrap;font-size:13px;line-height:1.45;color:var(--muted);max-height:240px;overflow:auto;margin-top:6px}
+.cand{border:1px solid var(--line2);border-radius:10px;padding:10px;background:var(--panel2);display:flex;flex-direction:column;gap:8px}
+.cand .previa{max-height:200px;color:var(--text)}
+.cand .acoes{display:flex;gap:8px;flex-wrap:wrap}
 /* Ao vivo */
 .live{position:fixed;inset:0;background:var(--bg);z-index:40;display:flex;flex-direction:column;overflow:auto}
 .live .bar{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:2}
@@ -453,6 +456,7 @@ function renderEditor(){
   TIPOS[i.tipo].destinos.forEach(function(d){ h += '<option value="' + d + '"' + (d === i.destino ? ' selected' : '') + '>' + DESTINOS[d].longo + '</option>'; });
   h += '</select></div>';
   if (i.tipo === 'musica' && nuvem.user) h += banco.editor(i);
+  if (i.tipo === 'musica' && nuvem.user) h += banco.candidato(i);
   if (i.tipo === 'texto' || (i.tipo === 'musica' && !i.musicaId)) {
     h += '<div class="field" style="flex:1"><label for="iLetra">' + (i.tipo === 'musica' ? 'Letra' : 'Texto') + ' · uma linha em branco separa os slides <span id="nSlides"></span></label>' +
       (i.tipo === 'musica' && ui.letraNota ? '<div class="msg muted" style="margin:0 0 6px">' + esc(ui.letraNota) + '</div>' : '') +
@@ -461,6 +465,12 @@ function renderEditor(){
     h += '<div class="field"><label for="iLink">Link do arquivo no Google Drive</label><input id="iLink" inputmode="url" value="' + esc(i.link) + '" placeholder="https://drive.google.com/file/d/...">' +
       '<div class="msg" id="linkMsg"></div>' +
       '<div class="msg muted">No Drive: botão direito no arquivo › Compartilhar › Acesso geral: <b>Qualquer pessoa com o link</b>. Sem isso a Projeção não consegue baixar.</div></div>';
+  }
+  if (i.tipo === 'musica') {
+    var busca = 'https://www.cifraclub.com.br/?q=' + encodeURIComponent(((i.titulo || '') + ' ' + (i.artista || '')).trim());
+    h += '<div class="field"><label for="iCifra">Cifra (opcional) · acordes em cima da letra, para o retorno de palco ' +
+      '<a href="' + busca + '" target="_blank" rel="noopener" style="margin-left:6px;color:var(--blueText);font-weight:600">Procurar no Cifra Club ↗</a></label>' +
+      '<textarea id="iCifra" style="min-height:110px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px" placeholder="Copie a cifra (de onde quiser) e cole aqui. O telão e a live continuam só com a letra; os acordes aparecem no retorno de palco.">' + esc(i.cifra || '') + '</textarea></div>';
   }
   h += '<div class="field"><label for="iObs">Observação para o operador</label><input id="iObs" value="' + esc(i.obs) + '" placeholder="Ex.: repetir o refrão no fim"></div>';
   el.innerHTML = h;
@@ -619,6 +629,17 @@ function menuCulto(id, x, y){
  * A Projeção sobe a biblioteca dela para a conta; aqui o diretor busca pelo nome ou por um trecho
  * da letra e vê a prévia. Música nova (com a letra colada) entra no banco ao publicar e desce sozinha
  * para a Projeção. A capa e o artista de uma música nova podem vir do catálogo da Apple (iTunes). */
+/* A letra de uma cifra (sem as linhas de acordes, tom, capotraste e tablatura), para a busca. */
+function cifraParaLetra(cifra){
+  var acorde = /^[A-G][#b]?(m|M|maj|min|dim|aug|sus|add)?\d*(\([^)]*\))?(\/[A-G][#b]?)?\*?$/;
+  return String(cifra || '').replace(/\r/g, '').split('\n').filter(function(l){
+    var t = l.trim();
+    if (!t) return true;
+    if (/^(tom|capotraste|afina[cç][aã]o)\s*:/i.test(t) || /^\[.*\]/.test(t) || /^[EADGBe]\s*\|/.test(t)) return false;
+    var p = t.split(/\s+/);
+    return !p.every(function(w){ return acorde.test(w) || w === '|'; });
+  }).map(function(l){ return l.trim(); }).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
 function semAcento(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim(); }
 var banco = {
   lista: [], parar_: null, apple: [], appleTermo: '', appleTimer: null,
@@ -629,7 +650,7 @@ var banco = {
       var lista = [];
       snap.forEach(function(d){
         var x = d.data(); if (x.apagada) return;
-        lista.push({id: d.id, titulo: x.titulo || '', artista: x.artista || '', capa: x.capa || '', letra: x.letra || '', showId: x.showId || '',
+        lista.push({id: d.id, titulo: x.titulo || '', artista: x.artista || '', capa: x.capa || '', letra: x.letra || '', cifra: x.cifra || '', showId: x.showId || '',
           nt: semAcento(x.titulo), na: semAcento(x.artista), nl: semAcento(x.letra)});
       });
       lista.sort(function(a, b){ return a.titulo.localeCompare(b.titulo, 'pt'); });
@@ -728,39 +749,67 @@ var banco = {
   semPermissao: false,
   escolher: function(id){
     var i = item(), m = banco.achar(id); if (!i || !m) return;
-    i.musicaId = m.id; i.showId = m.showId || ''; i.titulo = m.titulo; i.artista = m.artista; i.capa = m.capa; i.letra = '';
+    i.musicaId = m.id; i.showId = m.showId || ''; i.titulo = m.titulo; i.artista = m.artista; i.capa = m.capa; i.letra = ''; i.cifra = m.cifra || ''; ui.cand = null;
     ui.busca = ''; salvar(); atualizarLinha(i); atualizarStatus(); renderEditor();
   },
   escolherApple: function(k){
     var i = item(), x = banco.apple[k]; if (!i || !x) return;
     i.musicaId = ''; i.showId = ''; i.titulo = x.titulo; i.artista = x.artista; i.capa = x.capa;
-    ui.busca = ''; ui.letraNota = 'Buscando a letra…'; salvar(); atualizarLinha(i); atualizarStatus(); renderEditor();
-    banco.letra(x).then(function(letra){
-      var atual = item(); if (!atual || atual.id !== i.id) return;
-      if (letra) {
-        i.letra = letra; ui.letraNota = 'Letra encontrada no LRCLIB (base aberta de letras). Confira e corrija antes de publicar: ao publicar, ela entra no banco da igreja e vai sozinha para a Projeção.';
-        salvar(); atualizarLinha(i); atualizarStatus();
-      } else ui.letraNota = 'Não achei a letra desta gravação. Cole a letra aqui.';
-      renderEditor();
+    ui.busca = ''; ui.letraNota = ''; ui.cand = {itemId: i.id, lista: [], idx: 0, estado: 'buscando'};
+    salvar(); atualizarLinha(i); atualizarStatus(); renderEditor();
+    banco.letras(x).then(function(lista){
+      if (!ui.cand || ui.cand.itemId !== i.id) return;
+      ui.cand.lista = lista; ui.cand.estado = lista.length ? 'pronto' : 'vazio';
+      if (item() && item().id === i.id) renderEditor();
     });
   },
-  /* A letra no LRCLIB: primeiro a gravação exata (nome, artista, álbum e duração), depois uma busca. */
-  letra: function(x){
+  /* Prévia da letra encontrada: o diretor confere antes de usar (pode vir outra música com o mesmo nome). */
+  candidato: function(i){
+    var c = ui.cand; if (!c || c.itemId !== i.id) return '';
+    if (c.estado === 'buscando') return '<div class="cand"><div class="muted small">Buscando a letra…</div></div>';
+    if (c.estado === 'vazio' || c.idx >= c.lista.length) return '<div class="cand"><div class="muted small">' + (c.lista.length ? 'Acabaram as letras encontradas.' : 'Não achei a letra desta música.') + ' Cole a letra abaixo.</div><div class="acoes"><button class="btn small" data-cand="fechar">OK</button></div></div>';
+    var x = c.lista[c.idx];
+    return '<div class="cand"><div class="muted small">Letra ' + (c.idx + 1) + ' de ' + c.lista.length + ' · LRCLIB · ' + esc(x.faixa) + (x.artista ? ' — ' + esc(x.artista) : '') + '</div>' +
+      '<div class="previa">' + esc(x.texto) + '</div>' +
+      '<div class="acoes"><button class="btn primary small" data-cand="usar">Usar esta letra</button>' +
+      (c.idx + 1 < c.lista.length ? '<button class="btn small" data-cand="proxima">Não é essa › próxima</button>' : '') +
+      '<button class="btn link small" data-cand="fechar">Nenhuma, vou colar</button></div></div>';
+  },
+  acaoCandidato: function(acao){
+    var i = item(), c = ui.cand; if (!i || !c) return;
+    if (acao === 'usar') {
+      i.letra = c.lista[c.idx].texto; ui.cand = null;
+      ui.letraNota = 'Letra do LRCLIB (base aberta). Ao publicar, ela entra no banco da igreja e vai sozinha para a Projeção.';
+      salvar(); atualizarLinha(i); atualizarStatus();
+    } else if (acao === 'proxima') c.idx++;
+    else ui.cand = null;
+    renderEditor();
+  },
+  /* As letras no LRCLIB: a gravação exata (nome, artista, álbum e duração) primeiro, depois as buscas.
+   * Cada letra aparece uma vez só. */
+  letras: function(x){
     var base = 'https://lrclib.net/api/', head = {headers: {'Lrclib-Client': 'Projeto Live Diretor (https://github.com/denysondetrano30/projeto-live-diretor)'}};
     var limpa = function(t){ return String(t || '').replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim(); };
     var pega = function(url){ return fetch(url, head).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }); };
+    var lista = [], vistos = {};
+    var junta = function(a){
+      if (!a || !a.plainLyrics) return;
+      var texto = limpa(a.plainLyrics), chave = semAcento(texto).slice(0, 200);
+      if (!texto || vistos[chave]) return;
+      vistos[chave] = 1; lista.push({texto: texto, faixa: a.trackName || a.name || '', artista: a.artistName || ''});
+    };
     var exata = base + 'get?track_name=' + encodeURIComponent(x.titulo) + '&artist_name=' + encodeURIComponent(x.artista) +
       (x.album ? '&album_name=' + encodeURIComponent(x.album) : '') + (x.duracao ? '&duration=' + x.duracao : '');
     return pega(exata).then(function(d){
-      if (d && d.plainLyrics) return limpa(d.plainLyrics);
-      return pega(base + 'search?track_name=' + encodeURIComponent(x.titulo) + '&artist_name=' + encodeURIComponent(x.artista)).then(function(lista){
-        var achou = (lista || []).find(function(a){ return a.plainLyrics; });
-        if (achou) return limpa(achou.plainLyrics);
-        return pega(base + 'search?q=' + encodeURIComponent(x.titulo)).then(function(l2){
-          var a2 = (l2 || []).find(function(a){ return a.plainLyrics; });
-          return a2 ? limpa(a2.plainLyrics) : '';
-        });
-      });
+      junta(d);
+      return pega(base + 'search?track_name=' + encodeURIComponent(x.titulo) + '&artist_name=' + encodeURIComponent(x.artista));
+    }).then(function(l){
+      (l || []).forEach(junta);
+      if (lista.length >= 3) return null;
+      return pega(base + 'search?q=' + encodeURIComponent(x.titulo));
+    }).then(function(l){
+      (l || []).forEach(junta);
+      return lista.slice(0, 8);
     });
   },
   trocar: function(){
@@ -770,12 +819,23 @@ var banco = {
   /* Ao publicar: cada música com letra colada que ainda não está no banco vira uma música do banco. */
   guardarNovas: function(c){
     if (!nuvem.user) return;
+    var agora = new Date().toISOString();
     c.itens.forEach(function(i){
-      if (i.tipo !== 'musica' || i.musicaId || !(i.letra || '').trim()) return;
+      if (i.tipo !== 'musica') return;
+      var cifra = (i.cifra || '').trim();
+      if (i.musicaId) {
+        /* Música do banco que ganhou (ou mudou) a cifra: o banco guarda e a Projeção põe os acordes. */
+        var m = banco.achar(i.musicaId);
+        if (cifra && m && cifra !== (m.cifra || '').trim())
+          nuvem.m.setDoc(nuvem.m.doc(nuvem.fs, 'musicas', i.musicaId), {owner: nuvem.user.uid, cifra: cifra, pendente: true, atualizadoEm: agora}, {merge: true}).catch(function(e){ console.warn('banco de músicas', e); });
+        return;
+      }
+      if (!(i.letra || '').trim() && cifra) i.letra = cifraParaLetra(cifra);
+      if (!(i.letra || '').trim()) return;
       var id = nuvem.user.uid + '_d_' + uid();
       i.musicaId = id;
       nuvem.m.setDoc(nuvem.m.doc(nuvem.fs, 'musicas', id), {owner: nuvem.user.uid, titulo: i.titulo || 'Música', artista: i.artista || '', capa: i.capa || '',
-        letra: i.letra, origem: 'diretor', pendente: true, apagada: false, atualizadoEm: new Date().toISOString()}).catch(function(e){ console.warn('banco de músicas', e); });
+        letra: i.letra, cifra: cifra, origem: 'diretor', pendente: true, apagada: false, atualizadoEm: agora}).catch(function(e){ console.warn('banco de músicas', e); });
     });
   }
 };
@@ -950,6 +1010,7 @@ document.addEventListener('click', function(e){
   var bm = t.closest('[data-musica]'); if (bm) return banco.escolher(bm.dataset.musica);
   var ba = t.closest('[data-apple]'); if (ba) return banco.escolherApple(+ba.dataset.apple);
   if (t.closest('[data-trocarmusica]')) return banco.trocar();
+  var bc = t.closest('[data-cand]'); if (bc) return banco.acaoCandidato(bc.dataset.cand);
   var v = t.closest('[data-voltar]');
   if (v) { ui.view = v.dataset.voltar; if (ui.view === 'cultos') ui.itemId = null; return render(); }
   if (t.closest('#addItem')) {
@@ -991,6 +1052,7 @@ document.addEventListener('input', function(e){
   else if (i && id === 'iLetra') { i.letra = e.target.value; mostrarSlides(i); }
   else if (i && id === 'iLink') { i.link = e.target.value.trim(); mostrarLink(i); }
   else if (i && id === 'iObs') i.obs = e.target.value;
+  else if (i && id === 'iCifra') i.cifra = e.target.value;
   else return;
   salvar();
   if (i && id.charAt(0) === 'i') atualizarLinha(i);
