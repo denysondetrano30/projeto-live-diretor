@@ -101,6 +101,19 @@ aside.editor{border-left:1px solid var(--line);padding:20px 18px;display:flex;fl
   .headPub{display:none}
 }
 @media (min-width: 901px){ .pubBar{display:none} }
+/* Banco de músicas */
+.busca{position:relative}
+.bRes{display:flex;flex-direction:column;gap:2px;margin-top:6px;max-height:340px;overflow:auto}
+.bRes .sec{color:var(--muted);font-size:11px;letter-spacing:.6px;text-transform:uppercase;padding:8px 2px 4px}
+.bRes .r{display:flex;gap:10px;align-items:center;padding:7px 8px;border-radius:8px;cursor:pointer;text-align:left;background:none;border:0;color:inherit;width:100%}
+.bRes .r:hover,.bRes .r:focus{background:var(--panel2)}
+.capa{width:44px;height:44px;border-radius:6px;flex:0 0 auto;object-fit:cover;background:var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:18px}
+.bRes .t{font-weight:600}
+.bRes .a,.bRes .l{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bRes mark{background:rgba(255,214,0,.35);color:inherit;border-radius:2px}
+.escolhida{display:flex;gap:12px;align-items:flex-start;background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:10px}
+.escolhida .capa{width:64px;height:64px}
+.previa{white-space:pre-wrap;font-size:13px;line-height:1.45;color:var(--muted);max-height:240px;overflow:auto;margin-top:6px}
 /* Ao vivo */
 .live{position:fixed;inset:0;background:var(--bg);z-index:40;display:flex;flex-direction:column;overflow:auto}
 .live .bar{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:2}
@@ -280,8 +293,9 @@ function iniciarNuvem(cfg){
     document.getElementById('sair').addEventListener('click', function(){ A.signOut(nuvem.auth); });
     A.onAuthStateChanged(nuvem.auth, function(user){
       nuvem.user = user;
-      if (!user) { aoVivo.fechar(); db = {cultos: []}; ui.cultoId = null; ui.itemId = null; ui.view = 'cultos'; telaLogin(true); document.getElementById('modeNote').textContent = ''; render(); return; }
+      if (!user) { aoVivo.fechar(); banco.parar(); db = {cultos: []}; ui.cultoId = null; ui.itemId = null; ui.view = 'cultos'; telaLogin(true); document.getElementById('modeNote').textContent = ''; render(); return; }
       telaLogin(false); aviso('Carregando…');
+      banco.ouvir();
       F.getDocs(F.query(F.collection(nuvem.fs, 'cultos'), F.where('owner', '==', user.uid))).then(function(snap){
         var lista = [];
         snap.forEach(function(d){
@@ -349,6 +363,7 @@ function lerDrive(link){
 function slides(texto){ return (texto || '').split(/\n\s*\n/).filter(function(s){ return s.trim(); }).length; }
 function resumo(i){
   var t = TIPOS[i.tipo].nome;
+  if (i.tipo === 'musica' && i.musicaId) return t + ' · do banco da igreja' + (i.artista ? ' · ' + esc(i.artista) : '');
   if (i.tipo === 'musica' || i.tipo === 'texto') { var n = slides(i.letra); return t + ' · ' + (n ? n + (n === 1 ? ' slide' : ' slides') : (i.tipo === 'musica' ? 'da biblioteca da Projeção' : 'sem texto ainda')); }
   var d = lerDrive(i.link);
   if (d.estado === 'ok') return t + ' · arquivo do Drive';
@@ -437,10 +452,11 @@ function renderEditor(){
     '<div class="field"><label for="iDestino">Destino</label><select id="iDestino">';
   TIPOS[i.tipo].destinos.forEach(function(d){ h += '<option value="' + d + '"' + (d === i.destino ? ' selected' : '') + '>' + DESTINOS[d].longo + '</option>'; });
   h += '</select></div>';
-  if (i.tipo === 'musica' || i.tipo === 'texto') {
+  if (i.tipo === 'musica' && nuvem.user) h += banco.editor(i);
+  if (i.tipo === 'texto' || (i.tipo === 'musica' && !i.musicaId)) {
     h += '<div class="field" style="flex:1"><label for="iLetra">' + (i.tipo === 'musica' ? 'Letra' : 'Texto') + ' · uma linha em branco separa os slides <span id="nSlides"></span></label>' +
-      '<textarea id="iLetra" placeholder="' + (i.tipo === 'musica' ? 'Se a música já está cadastrada na Projeção, deixe em branco: ela usa a letra da biblioteca pelo título. Para uma música nova, cole a letra aqui.' : 'Cole aqui. Deixe uma linha em branco entre um slide e outro.') + '">' + esc(i.letra) + '</textarea></div>';
-  } else {
+      '<textarea id="iLetra" placeholder="' + (i.tipo === 'musica' ? (nuvem.user ? 'Música nova: cole a letra aqui. Ao publicar, ela entra no banco da igreja e vai sozinha para a Projeção. Se a música já existe, busque acima.' : 'Se a música já está cadastrada na Projeção, deixe em branco: ela usa a letra da biblioteca pelo título. Para uma música nova, cole a letra aqui.') : 'Cole aqui. Deixe uma linha em branco entre um slide e outro.') + '">' + esc(i.letra) + '</textarea></div>';
+  } else if (i.tipo === 'imagem' || i.tipo === 'video') {
     h += '<div class="field"><label for="iLink">Link do arquivo no Google Drive</label><input id="iLink" inputmode="url" value="' + esc(i.link) + '" placeholder="https://drive.google.com/file/d/...">' +
       '<div class="msg" id="linkMsg"></div>' +
       '<div class="msg muted">No Drive: botão direito no arquivo › Compartilhar › Acesso geral: <b>Qualquer pessoa com o link</b>. Sem isso a Projeção não consegue baixar.</div></div>';
@@ -448,6 +464,7 @@ function renderEditor(){
   h += '<div class="field"><label for="iObs">Observação para o operador</label><input id="iObs" value="' + esc(i.obs) + '" placeholder="Ex.: repetir o refrão no fim"></div>';
   el.innerHTML = h;
   mostrarSlides(i); mostrarLink(i);
+  if (i.tipo === 'musica' && nuvem.user) banco.buscar(i);
 }
 function mostrarSlides(i){
   var n = document.getElementById('nSlides'); if (!n) return;
@@ -486,6 +503,7 @@ function publicar(){
   var c = culto(); if (!c || !mudou(c)) return;
   var faltando = c.itens.filter(function(i){ return (i.tipo === 'imagem' || i.tipo === 'video') && lerDrive(i.link).estado !== 'ok'; });
   var fazer = function(){
+    banco.guardarNovas(c);
     var n = (ultima(c) ? ultima(c).n : 0) + 1;
     c.versoes.push({n: n, em: new Date().toISOString(), retrato: retrato(c)});
     salvar();
@@ -595,6 +613,140 @@ function menuCulto(id, x, y){
   ]);
 }
 
+
+/* ---------------- banco de músicas da igreja (musicas/<id>) ----------------
+ * A Projeção sobe a biblioteca dela para a conta; aqui o diretor busca pelo nome ou por um trecho
+ * da letra e vê a prévia. Música nova (com a letra colada) entra no banco ao publicar e desce sozinha
+ * para a Projeção. A capa e o artista de uma música nova podem vir do catálogo da Apple (iTunes). */
+function semAcento(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim(); }
+var banco = {
+  lista: [], parar_: null, apple: [], appleTermo: '', appleTimer: null,
+  ouvir: function(){
+    banco.parar();
+    var F = nuvem.m;
+    banco.parar_ = F.onSnapshot(F.query(F.collection(nuvem.fs, 'musicas'), F.where('owner', '==', nuvem.user.uid)), function(snap){
+      var lista = [];
+      snap.forEach(function(d){
+        var x = d.data(); if (x.apagada) return;
+        lista.push({id: d.id, titulo: x.titulo || '', artista: x.artista || '', capa: x.capa || '', letra: x.letra || '', showId: x.showId || '',
+          nt: semAcento(x.titulo), na: semAcento(x.artista), nl: semAcento(x.letra)});
+      });
+      lista.sort(function(a, b){ return a.titulo.localeCompare(b.titulo, 'pt'); });
+      banco.lista = lista;
+      var i = item(); if (i && i.tipo === 'musica' && document.getElementById('bRes')) banco.buscar(i);
+    }, function(e){ console.warn('banco de músicas', e); });
+  },
+  parar: function(){ if (banco.parar_) { try { banco.parar_(); } catch (e) {} } banco.parar_ = null; banco.lista = []; },
+  achar: function(id){ return banco.lista.find(function(m){ return m.id === id; }) || null; },
+  editor: function(i){
+    var m = i.musicaId ? banco.achar(i.musicaId) : null;
+    if (i.musicaId) {
+      var capa = (m && m.capa) || i.capa;
+      return '<div class="field"><label>Música do banco da igreja</label><div class="escolhida">' +
+        (capa ? '<img class="capa" src="' + esc(capa) + '" alt="">' : '<div class="capa">♪</div>') +
+        '<div style="min-width:0;flex:1"><div style="font-weight:700">' + esc((m && m.titulo) || i.titulo) + '</div>' +
+        '<div class="muted small">' + esc((m && m.artista) || i.artista || '') + '</div>' +
+        '<div class="previa">' + (m ? esc(m.letra) : 'A letra aparece aqui quando o banco carregar.') + '</div></div>' +
+        '<button class="btn link small" data-trocarmusica>Trocar</button></div></div>';
+    }
+    return '<div class="field busca"><label for="iBusca">Buscar no banco da igreja · pelo nome ou por um trecho da letra</label>' +
+      '<input id="iBusca" autocomplete="off" placeholder="Ex.: grande é o senhor  ou  teu nome é santo" value="' + esc(ui.busca || '') + '">' +
+      '<div class="bRes" id="bRes"></div></div>';
+  },
+  buscar: function(i){
+    var campo = document.getElementById('iBusca'), res = document.getElementById('bRes');
+    if (!campo || !res) return;
+    ui.busca = campo.value;
+    var q = semAcento(campo.value);
+    if (!q) { res.innerHTML = banco.lista.length ? '' : '<div class="muted small" style="padding:6px 2px">O banco ainda está vazio: abra a Projeção conectada à conta e ela envia a biblioteca de músicas.</div>'; return; }
+    var termos = q.split(' ');
+    var achados = [];
+    banco.lista.forEach(function(m){
+      var tudo = m.nt + ' ' + m.na + ' ' + m.nl, nota = 0;
+      if (m.nt.indexOf(q) === 0) nota = 4; else if (m.nt.indexOf(q) >= 0) nota = 3;
+      else if (m.nl.indexOf(q) >= 0) nota = 2;
+      else if (termos.every(function(t){ return tudo.indexOf(t) >= 0; })) nota = 1;
+      if (nota) achados.push({m: m, nota: nota});
+    });
+    achados.sort(function(a, b){ return b.nota - a.nota || a.m.titulo.localeCompare(b.m.titulo, 'pt'); });
+    var h = '<div class="sec">No banco da igreja</div>';
+    h += achados.length ? achados.slice(0, 8).map(function(x){
+      var m = x.m;
+      return '<button class="r" data-musica="' + esc(m.id) + '">' + (m.capa ? '<img class="capa" src="' + esc(m.capa) + '" alt="">' : '<div class="capa">♪</div>') +
+        '<div style="min-width:0;flex:1"><div class="t">' + esc(m.titulo) + '</div>' + (m.artista ? '<div class="a">' + esc(m.artista) + '</div>' : '') +
+        '<div class="l">' + banco.trecho(m, q, termos) + '</div></div></button>';
+    }).join('') : '<div class="muted small" style="padding:4px 2px">Nenhuma música do banco tem esse nome ou trecho.</div>';
+    h += '<div class="sec">Música nova · catálogo da Apple (só capa e artista)</div><div id="bApple"><div class="muted small" style="padding:4px 2px">Procurando…</div></div>';
+    res.innerHTML = h;
+    banco.catalogo(campo.value.trim());
+  },
+  /* A linha da letra onde está o trecho (com o trecho marcado); sem trecho, o começo da letra. */
+  trecho: function(m, q, termos){
+    var linhas = m.letra.split('\n'), alvo = '';
+    for (var k = 0; k < linhas.length; k++) { if (semAcento(linhas[k]).indexOf(q) >= 0) { alvo = linhas[k]; break; } }
+    if (!alvo) for (var j = 0; j < linhas.length; j++) { if (semAcento(linhas[j]).indexOf(termos[0]) >= 0) { alvo = linhas[j]; break; } }
+    if (!alvo) alvo = linhas.filter(function(l){ return l.trim(); }).slice(0, 2).join(' / ');
+    var limpo = esc(alvo);
+    var base0 = semAcento(alvo), em = base0.indexOf(q);
+    if (em >= 0 && base0.length === alvo.length) return esc(alvo.slice(0, em)) + '<mark>' + esc(alvo.slice(em, em + q.length)) + '</mark>' + esc(alvo.slice(em + q.length));
+    termos.forEach(function(t){
+      if (t.length < 3) return;
+      /* marca a palavra mesmo com acento: compara letra a letra sem acento */
+      var base = semAcento(alvo), at = base.indexOf(t);
+      if (at >= 0 && base.length === alvo.length) limpo = esc(alvo.slice(0, at)) + '<mark>' + esc(alvo.slice(at, at + t.length)) + '</mark>' + esc(alvo.slice(at + t.length));
+    });
+    return limpo;
+  },
+  catalogo: function(termo){
+    clearTimeout(banco.appleTimer);
+    if (termo.length < 3) { var b = document.getElementById('bApple'); if (b) b.innerHTML = ''; return; }
+    banco.appleTimer = setTimeout(function(){
+      var nome = 'plApple' + Date.now();
+      var s = document.createElement('script');
+      window[nome] = function(r){
+        delete window[nome]; s.remove();
+        banco.apple = (r && r.results || []).map(function(x){ return {titulo: x.trackName || '', artista: x.artistName || '', capa: String(x.artworkUrl100 || '').replace('100x100', '300x300')}; });
+        banco.mostrarApple();
+      };
+      s.onerror = function(){ delete window[nome]; s.remove(); var b = document.getElementById('bApple'); if (b) b.innerHTML = '<div class="muted small" style="padding:4px 2px">Catálogo indisponível agora.</div>'; };
+      s.src = 'https://itunes.apple.com/search?media=music&entity=song&country=BR&limit=6&term=' + encodeURIComponent(termo) + '&callback=' + nome;
+      document.body.appendChild(s);
+    }, 450);
+  },
+  mostrarApple: function(){
+    var b = document.getElementById('bApple'); if (!b) return;
+    b.innerHTML = banco.apple.length ? banco.apple.map(function(x, k){
+      return '<button class="r" data-apple="' + k + '">' + (x.capa ? '<img class="capa" src="' + esc(x.capa) + '" alt="" loading="lazy">' : '<div class="capa">♪</div>') +
+        '<div style="min-width:0;flex:1"><div class="t">' + esc(x.titulo) + '</div><div class="a">' + esc(x.artista) + '</div></div></button>';
+    }).join('') : '<div class="muted small" style="padding:4px 2px">Nada no catálogo.</div>';
+  },
+  escolher: function(id){
+    var i = item(), m = banco.achar(id); if (!i || !m) return;
+    i.musicaId = m.id; i.showId = m.showId || ''; i.titulo = m.titulo; i.artista = m.artista; i.capa = m.capa; i.letra = '';
+    ui.busca = ''; salvar(); atualizarLinha(i); atualizarStatus(); renderEditor();
+  },
+  escolherApple: function(k){
+    var i = item(), x = banco.apple[k]; if (!i || !x) return;
+    i.musicaId = ''; i.showId = ''; i.titulo = x.titulo; i.artista = x.artista; i.capa = x.capa;
+    ui.busca = ''; salvar(); atualizarLinha(i); atualizarStatus(); renderEditor();
+    toast('Agora cole a letra: ao publicar, a música entra no banco da igreja e vai sozinha para a Projeção.');
+  },
+  trocar: function(){
+    var i = item(); if (!i) return;
+    i.musicaId = ''; i.showId = ''; salvar(); atualizarLinha(i); atualizarStatus(); renderEditor();
+  },
+  /* Ao publicar: cada música com letra colada que ainda não está no banco vira uma música do banco. */
+  guardarNovas: function(c){
+    if (!nuvem.user) return;
+    c.itens.forEach(function(i){
+      if (i.tipo !== 'musica' || i.musicaId || !(i.letra || '').trim()) return;
+      var id = nuvem.user.uid + '_d_' + uid();
+      i.musicaId = id;
+      nuvem.m.setDoc(nuvem.m.doc(nuvem.fs, 'musicas', id), {owner: nuvem.user.uid, titulo: i.titulo || 'Música', artista: i.artista || '', capa: i.capa || '',
+        letra: i.letra, origem: 'diretor', pendente: true, apagada: false, atualizadoEm: new Date().toISOString()}).catch(function(e){ console.warn('banco de músicas', e); });
+    });
+  }
+};
 
 /* ---------------- ao vivo (bloco 6) ----------------
  * Durante o culto, pela conta:
@@ -763,6 +915,9 @@ document.addEventListener('click', function(e){
   if (t.closest('[data-publicar]')) return publicar();
   if (t.closest('[data-copiar]')) return copiarParaProjecao();
   if (t.closest('[data-aovivo]')) return aoVivo.abrir();
+  var bm = t.closest('[data-musica]'); if (bm) return banco.escolher(bm.dataset.musica);
+  var ba = t.closest('[data-apple]'); if (ba) return banco.escolherApple(+ba.dataset.apple);
+  if (t.closest('[data-trocarmusica]')) return banco.trocar();
   var v = t.closest('[data-voltar]');
   if (v) { ui.view = v.dataset.voltar; if (ui.view === 'cultos') ui.itemId = null; return render(); }
   if (t.closest('#addItem')) {
@@ -799,6 +954,7 @@ document.addEventListener('input', function(e){
   if (id === 'cNome') c.nome = e.target.value;
   else if (id === 'cData') c.data = e.target.value;
   else if (id === 'cHora') c.hora = e.target.value;
+  else if (i && id === 'iBusca') { banco.buscar(i); return; }
   else if (i && id === 'iTitulo') i.titulo = e.target.value;
   else if (i && id === 'iLetra') { i.letra = e.target.value; mostrarSlides(i); }
   else if (i && id === 'iLink') { i.link = e.target.value.trim(); mostrarLink(i); }
