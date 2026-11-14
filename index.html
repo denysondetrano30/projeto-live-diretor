@@ -631,7 +631,7 @@ function menuCulto(id, x, y){
  * para a Projeção. A capa e o artista de uma música nova podem vir do catálogo da Apple (iTunes). */
 /* A letra de uma cifra (sem as linhas de acordes, tom, capotraste e tablatura), para a busca. */
 function cifraParaLetra(cifra){
-  var acorde = /^[A-G][#b]?(m|M|maj|min|dim|aug|sus|add)?\d*(\([^)]*\))?(\/[A-G][#b]?)?\*?$/;
+  var acorde = /^\(?[A-G](#|b)?(maj|min|dim|aug|sus|add|m|M|º|°|\+|-|\d|\(|\)|\/[A-G](#|b)?|#|b)*\)?\*?$/;
   return String(cifra || '').replace(/\r/g, '').split('\n').filter(function(l){
     var t = l.trim();
     if (!t) return true;
@@ -639,6 +639,16 @@ function cifraParaLetra(cifra){
     var p = t.split(/\s+/);
     return !p.every(function(w){ return acorde.test(w) || w === '|'; });
   }).map(function(l){ return l.trim(); }).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+/* Tem pelo menos 2 linhas só de acordes? Então é cifra. */
+function pareceCifra(texto){
+  var acorde = /^\(?[A-G](#|b)?(maj|min|dim|aug|sus|add|m|M|º|°|\+|-|\d|\(|\)|\/[A-G](#|b)?|#|b)*\)?\*?$/;
+  var n = 0;
+  String(texto || '').split('\n').forEach(function(l){
+    var p = l.trim().split(/\s+/).filter(Boolean);
+    if (p.length && p.every(function(w){ return acorde.test(w) || /^[|/.-]+$/.test(w); })) n++;
+  });
+  return n >= 2;
 }
 function semAcento(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim(); }
 var banco = {
@@ -654,11 +664,11 @@ var banco = {
           nt: semAcento(x.titulo), na: semAcento(x.artista), nl: semAcento(x.letra)});
       });
       lista.sort(function(a, b){ return a.titulo.localeCompare(b.titulo, 'pt'); });
-      banco.lista = lista;
+      banco.lista = lista; banco.carregado = true;
       var i = item(); if (i && i.tipo === 'musica' && document.getElementById('bRes')) banco.buscar(i);
     }, function(e){ console.warn('banco de músicas', e); banco.semPermissao = /permission/i.test(String(e && e.code || e)); var i = item(); if (i && i.tipo === 'musica') banco.buscar(i); });
   },
-  parar: function(){ if (banco.parar_) { try { banco.parar_(); } catch (e) {} } banco.parar_ = null; banco.lista = []; },
+  parar: function(){ if (banco.parar_) { try { banco.parar_(); } catch (e) {} } banco.parar_ = null; banco.lista = []; banco.carregado = false; },
   achar: function(id){ return banco.lista.find(function(m){ return m.id === id; }) || null; },
   editor: function(i){
     var m = i.musicaId ? banco.achar(i.musicaId) : null;
@@ -668,7 +678,7 @@ var banco = {
         (capa ? '<img class="capa" src="' + esc(capa) + '" alt="">' : '<div class="capa">♪</div>') +
         '<div style="min-width:0;flex:1"><div style="font-weight:700">' + esc((m && m.titulo) || i.titulo) + '</div>' +
         '<div class="muted small">' + esc((m && m.artista) || i.artista || '') + '</div>' +
-        '<div class="previa">' + (m ? esc(m.letra) : 'A letra aparece aqui quando o banco carregar.') + '</div></div>' +
+        '<div class="previa">' + (m ? esc(m.letra) : banco.carregado ? 'Esta música não está mais no banco (foi apagada na Projeção?). Ela será criada de novo na Projeção pela letra ou pela cifra abaixo.' : 'A letra aparece aqui quando o banco carregar.') + '</div></div>' +
         '<button class="btn link small" data-trocarmusica>Trocar</button></div></div>';
     }
     return '<div class="field busca"><label for="iBusca">Buscar no banco da igreja · pelo nome ou por um trecho da letra</label>' +
@@ -822,12 +832,15 @@ var banco = {
     var agora = new Date().toISOString();
     c.itens.forEach(function(i){
       if (i.tipo !== 'musica') return;
+      /* Cifra colada no campo Letra: passa para o campo Cifra e a letra fica só com o texto. */
+      if (!(i.cifra || '').trim() && pareceCifra(i.letra)) { i.cifra = i.letra; i.letra = cifraParaLetra(i.cifra); }
       var cifra = (i.cifra || '').trim();
       if (i.musicaId) {
-        /* Música do banco que ganhou (ou mudou) a cifra: o banco guarda e a Projeção põe os acordes. */
+        /* Música do banco que ganhou (ou mudou) a cifra: o banco guarda e a Projeção põe os acordes
+         * (mesmo se a lista do banco ainda não carregou aqui). */
         var m = banco.achar(i.musicaId);
-        if (cifra && m && cifra !== (m.cifra || '').trim())
-          nuvem.m.setDoc(nuvem.m.doc(nuvem.fs, 'musicas', i.musicaId), {owner: nuvem.user.uid, cifra: cifra, pendente: true, atualizadoEm: agora}, {merge: true}).catch(function(e){ console.warn('banco de músicas', e); });
+        if (cifra && cifra !== ((m && m.cifra) || i.cifraEnviada || '').trim())
+          { i.cifraEnviada = cifra; nuvem.m.setDoc(nuvem.m.doc(nuvem.fs, 'musicas', i.musicaId), {owner: nuvem.user.uid, cifra: cifra, pendente: true, atualizadoEm: agora}, {merge: true}).catch(function(e){ console.warn('banco de músicas', e); }); }
         return;
       }
       if (!(i.letra || '').trim() && cifra) i.letra = cifraParaLetra(cifra);
