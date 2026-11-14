@@ -455,6 +455,7 @@ function renderEditor(){
   if (i.tipo === 'musica' && nuvem.user) h += banco.editor(i);
   if (i.tipo === 'texto' || (i.tipo === 'musica' && !i.musicaId)) {
     h += '<div class="field" style="flex:1"><label for="iLetra">' + (i.tipo === 'musica' ? 'Letra' : 'Texto') + ' · uma linha em branco separa os slides <span id="nSlides"></span></label>' +
+      (i.tipo === 'musica' && ui.letraNota ? '<div class="msg muted" style="margin:0 0 6px">' + esc(ui.letraNota) + '</div>' : '') +
       '<textarea id="iLetra" placeholder="' + (i.tipo === 'musica' ? (nuvem.user ? 'Música nova: cole a letra aqui. Ao publicar, ela entra no banco da igreja e vai sozinha para a Projeção. Se a música já existe, busque acima.' : 'Se a música já está cadastrada na Projeção, deixe em branco: ela usa a letra da biblioteca pelo título. Para uma música nova, cole a letra aqui.') : 'Cole aqui. Deixe uma linha em branco entre um slide e outro.') + '">' + esc(i.letra) + '</textarea></div>';
   } else if (i.tipo === 'imagem' || i.tipo === 'video') {
     h += '<div class="field"><label for="iLink">Link do arquivo no Google Drive</label><input id="iLink" inputmode="url" value="' + esc(i.link) + '" placeholder="https://drive.google.com/file/d/...">' +
@@ -634,7 +635,7 @@ var banco = {
       lista.sort(function(a, b){ return a.titulo.localeCompare(b.titulo, 'pt'); });
       banco.lista = lista;
       var i = item(); if (i && i.tipo === 'musica' && document.getElementById('bRes')) banco.buscar(i);
-    }, function(e){ console.warn('banco de músicas', e); });
+    }, function(e){ console.warn('banco de músicas', e); banco.semPermissao = /permission/i.test(String(e && e.code || e)); var i = item(); if (i && i.tipo === 'musica') banco.buscar(i); });
   },
   parar: function(){ if (banco.parar_) { try { banco.parar_(); } catch (e) {} } banco.parar_ = null; banco.lista = []; },
   achar: function(id){ return banco.lista.find(function(m){ return m.id === id; }) || null; },
@@ -658,7 +659,11 @@ var banco = {
     if (!campo || !res) return;
     ui.busca = campo.value;
     var q = semAcento(campo.value);
-    if (!q) { res.innerHTML = banco.lista.length ? '' : '<div class="muted small" style="padding:6px 2px">O banco ainda está vazio: abra a Projeção conectada à conta e ela envia a biblioteca de músicas.</div>'; return; }
+    if (!q) {
+      res.innerHTML = banco.lista.length ? '' : banco.semPermissao ? '<div class="msg bad" style="padding:6px 2px">O banco de músicas está sem permissão: cole as regras novas (firestore.rules) no console do Firebase.</div>' :
+        '<div class="muted small" style="padding:6px 2px">O banco ainda está vazio: abra a Projeção (versão nova) conectada à conta e ela envia a biblioteca de músicas.</div>';
+      return;
+    }
     var termos = q.split(' ');
     var achados = [];
     banco.lista.forEach(function(m){
@@ -676,7 +681,7 @@ var banco = {
         '<div style="min-width:0;flex:1"><div class="t">' + esc(m.titulo) + '</div>' + (m.artista ? '<div class="a">' + esc(m.artista) + '</div>' : '') +
         '<div class="l">' + banco.trecho(m, q, termos) + '</div></div></button>';
     }).join('') : '<div class="muted small" style="padding:4px 2px">Nenhuma música do banco tem esse nome ou trecho.</div>';
-    h += '<div class="sec">Música nova · catálogo da Apple (só capa e artista)</div><div id="bApple"><div class="muted small" style="padding:4px 2px">Procurando…</div></div>';
+    h += '<div class="sec">Música nova · catálogo (a letra vem do LRCLIB)</div><div id="bApple"><div class="muted small" style="padding:4px 2px">Procurando…</div></div>';
     res.innerHTML = h;
     banco.catalogo(campo.value.trim());
   },
@@ -705,7 +710,7 @@ var banco = {
       var s = document.createElement('script');
       window[nome] = function(r){
         delete window[nome]; s.remove();
-        banco.apple = (r && r.results || []).map(function(x){ return {titulo: x.trackName || '', artista: x.artistName || '', capa: String(x.artworkUrl100 || '').replace('100x100', '300x300')}; });
+        banco.apple = (r && r.results || []).map(function(x){ return {titulo: x.trackName || '', artista: x.artistName || '', album: x.collectionName || '', duracao: Math.round((x.trackTimeMillis || 0) / 1000), capa: String(x.artworkUrl100 || '').replace('100x100', '300x300')}; });
         banco.mostrarApple();
       };
       s.onerror = function(){ delete window[nome]; s.remove(); var b = document.getElementById('bApple'); if (b) b.innerHTML = '<div class="muted small" style="padding:4px 2px">Catálogo indisponível agora.</div>'; };
@@ -720,6 +725,7 @@ var banco = {
         '<div style="min-width:0;flex:1"><div class="t">' + esc(x.titulo) + '</div><div class="a">' + esc(x.artista) + '</div></div></button>';
     }).join('') : '<div class="muted small" style="padding:4px 2px">Nada no catálogo.</div>';
   },
+  semPermissao: false,
   escolher: function(id){
     var i = item(), m = banco.achar(id); if (!i || !m) return;
     i.musicaId = m.id; i.showId = m.showId || ''; i.titulo = m.titulo; i.artista = m.artista; i.capa = m.capa; i.letra = '';
@@ -728,8 +734,34 @@ var banco = {
   escolherApple: function(k){
     var i = item(), x = banco.apple[k]; if (!i || !x) return;
     i.musicaId = ''; i.showId = ''; i.titulo = x.titulo; i.artista = x.artista; i.capa = x.capa;
-    ui.busca = ''; salvar(); atualizarLinha(i); atualizarStatus(); renderEditor();
-    toast('Agora cole a letra: ao publicar, a música entra no banco da igreja e vai sozinha para a Projeção.');
+    ui.busca = ''; ui.letraNota = 'Buscando a letra…'; salvar(); atualizarLinha(i); atualizarStatus(); renderEditor();
+    banco.letra(x).then(function(letra){
+      var atual = item(); if (!atual || atual.id !== i.id) return;
+      if (letra) {
+        i.letra = letra; ui.letraNota = 'Letra encontrada no LRCLIB (base aberta de letras). Confira e corrija antes de publicar: ao publicar, ela entra no banco da igreja e vai sozinha para a Projeção.';
+        salvar(); atualizarLinha(i); atualizarStatus();
+      } else ui.letraNota = 'Não achei a letra desta gravação. Cole a letra aqui.';
+      renderEditor();
+    });
+  },
+  /* A letra no LRCLIB: primeiro a gravação exata (nome, artista, álbum e duração), depois uma busca. */
+  letra: function(x){
+    var base = 'https://lrclib.net/api/', head = {headers: {'Lrclib-Client': 'Projeto Live Diretor (https://github.com/denysondetrano30/projeto-live-diretor)'}};
+    var limpa = function(t){ return String(t || '').replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim(); };
+    var pega = function(url){ return fetch(url, head).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }); };
+    var exata = base + 'get?track_name=' + encodeURIComponent(x.titulo) + '&artist_name=' + encodeURIComponent(x.artista) +
+      (x.album ? '&album_name=' + encodeURIComponent(x.album) : '') + (x.duracao ? '&duration=' + x.duracao : '');
+    return pega(exata).then(function(d){
+      if (d && d.plainLyrics) return limpa(d.plainLyrics);
+      return pega(base + 'search?track_name=' + encodeURIComponent(x.titulo) + '&artist_name=' + encodeURIComponent(x.artista)).then(function(lista){
+        var achou = (lista || []).find(function(a){ return a.plainLyrics; });
+        if (achou) return limpa(achou.plainLyrics);
+        return pega(base + 'search?q=' + encodeURIComponent(x.titulo)).then(function(l2){
+          var a2 = (l2 || []).find(function(a){ return a.plainLyrics; });
+          return a2 ? limpa(a2.plainLyrics) : '';
+        });
+      });
+    });
   },
   trocar: function(){
     var i = item(); if (!i) return;
@@ -925,7 +957,7 @@ document.addEventListener('click', function(e){
     return menu(r.left, r.bottom + 6, Object.keys(TIPOS).map(function(k){ return {t: TIPOS[k].nome, f: function(){ novoItem(k); }}; }));
   }
   var li = t.closest('[data-item]');
-  if (li && !t.closest('[data-grip]')) { ui.itemId = li.dataset.item; ui.view = 'item'; renderRoteiro(); renderEditor(); document.getElementById('app').dataset.view = ui.view; }
+  if (li && !t.closest('[data-grip]')) { ui.letraNota = ''; ui.itemId = li.dataset.item; ui.view = 'item'; renderRoteiro(); renderEditor(); document.getElementById('app').dataset.view = ui.view; }
 });
 document.addEventListener('keydown', function(e){ if (e.key === 'Escape') fecharMenu(); });
 
