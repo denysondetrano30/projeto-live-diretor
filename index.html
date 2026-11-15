@@ -117,6 +117,20 @@ aside.editor{border-left:1px solid var(--line);padding:20px 18px;display:flex;fl
 .cand{border:1px solid var(--line2);border-radius:10px;padding:10px;background:var(--panel2);display:flex;flex-direction:column;gap:8px}
 .cand .previa{max-height:200px;color:var(--text)}
 .cand .acoes{display:flex;gap:8px;flex-wrap:wrap}
+/* Equipe e escala */
+.eqRow{display:grid;grid-template-columns:minmax(140px,1.2fr) minmax(130px,1fr) minmax(0,2fr) auto;gap:10px;align-items:center;border-top:1px solid var(--line);padding:10px 0}
+.eqRow input{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:8px 10px;width:100%;min-height:40px}
+.fchips{display:flex;flex-wrap:wrap;gap:6px}
+.fchips button{background:var(--panel2);border:1px solid var(--line2);border-radius:16px;padding:4px 10px;font-size:13px}
+.fchips button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.vaga{display:grid;grid-template-columns:minmax(120px,1fr) minmax(180px,2fr) auto auto auto;gap:8px;align-items:center;border-top:1px solid var(--line);padding:8px 0}
+.vaga select{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:8px;min-height:40px;width:100%}
+.estado{font-size:12px;border-radius:12px;padding:3px 9px;white-space:nowrap}
+.estado.pendente{background:rgba(242,184,75,.15);color:#f2b84b}
+.estado.confirmado{background:rgba(76,175,80,.18);color:#7bd47f}
+.estado.recusado{background:rgba(229,87,77,.18);color:#ff8a80}
+.estado.vazio{background:var(--line);color:var(--muted)}
+@media (max-width: 900px){ .eqRow,.vaga{grid-template-columns:1fr} }
 /* Ao vivo */
 .live{position:fixed;inset:0;background:var(--bg);z-index:40;display:flex;flex-direction:column;overflow:auto}
 .live .bar{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:2}
@@ -151,6 +165,7 @@ aside.editor{border-left:1px solid var(--line);padding:20px 18px;display:flex;fl
     <div class="muted small">Diretor</div>
     <div style="flex:1"></div>
     <div class="muted small" id="modeNote">Modo de teste: os dados ficam só neste navegador</div>
+    <button class="btn small" id="btnEquipe" style="display:none">Equipe</button>
     <button class="btn link small" id="sair" style="display:none">Sair</button>
   </header>
   <div id="login" style="display:none;flex:1;align-items:center;justify-content:center;padding:20px">
@@ -169,6 +184,7 @@ aside.editor{border-left:1px solid var(--line);padding:20px 18px;display:flex;fl
     <aside class="col editor" id="editor" aria-label="Item escolhido"></aside>
   </div>
   <section class="live" id="aovivo" style="display:none" aria-label="Culto ao vivo"></section>
+  <section class="live" id="painel" style="display:none" aria-label="Equipe e escala"></section>
 </div>
 
 <script>
@@ -274,6 +290,7 @@ function telaLogin(mostrar){
   document.getElementById('login').style.display = mostrar ? 'flex' : 'none';
   document.querySelector('.cols').style.display = mostrar ? 'none' : '';
   document.getElementById('sair').style.display = mostrar ? 'none' : '';
+  document.getElementById('btnEquipe').style.display = mostrar ? 'none' : '';
 }
 
 function iniciarNuvem(cfg){
@@ -296,9 +313,9 @@ function iniciarNuvem(cfg){
     document.getElementById('sair').addEventListener('click', function(){ A.signOut(nuvem.auth); });
     A.onAuthStateChanged(nuvem.auth, function(user){
       nuvem.user = user;
-      if (!user) { aoVivo.fechar(); banco.parar(); db = {cultos: []}; ui.cultoId = null; ui.itemId = null; ui.view = 'cultos'; telaLogin(true); document.getElementById('modeNote').textContent = ''; render(); return; }
+      if (!user) { aoVivo.fechar(); banco.parar(); equipe.parar(); db = {cultos: []}; ui.cultoId = null; ui.itemId = null; ui.view = 'cultos'; telaLogin(true); document.getElementById('modeNote').textContent = ''; render(); return; }
       telaLogin(false); aviso('Carregando…');
-      banco.ouvir();
+      banco.ouvir(); equipe.ouvir();
       F.getDocs(F.query(F.collection(nuvem.fs, 'cultos'), F.where('owner', '==', user.uid))).then(function(snap){
         var lista = [];
         snap.forEach(function(d){
@@ -408,6 +425,7 @@ function renderRoteiro(){
     '<input class="titleIn" id="cNome" aria-label="Nome do culto" value="' + esc(c.nome) + '" placeholder="Nome do culto">' +
     '<div class="when"><input type="date" id="cData" aria-label="Data" value="' + esc(c.data) + '"><input type="time" id="cHora" aria-label="Hora" value="' + esc(c.hora) + '"></div></div>' +
     '<div class="status" id="status"><span class="dot" style="background:' + s.cor + '"></span><span>' + esc(s.texto) + '</span></div>' +
+    (nuvem.user ? '<button class="btn headPub" data-escala style="min-height:44px">Escala</button>' : '') +
     (nuvem.user && ultima(c) ? '<button class="btn headPub" data-aovivo style="min-height:44px"><span class="dot" style="background:var(--red);margin-right:6px"></span>Ao vivo</button>' : '') +
     (ultima(c) ? '<button class="btn headPub" data-copiar style="min-height:44px" title="Copia a última versão publicada para colar na Projeção">Copiar para a Projeção</button>' : '') +
     '<button class="btn primary headPub" data-publicar ' + (mudou(c) ? '' : 'disabled') + ' style="min-height:44px;padding:0 20px">Publicar v' + proxima + '</button></div>' +
@@ -424,7 +442,7 @@ function renderRoteiro(){
   h += '</ol>';
   if (!c.itens.length) h += '<div class="empty small">Roteiro vazio. Adicione a primeira música, leitura, imagem ou vídeo.</div>';
   h += '<div><button class="btn ghost" id="addItem" style="min-height:44px">+ Adicionar ao roteiro</button></div>';
-  h += '<div class="pubBar">' + (nuvem.user && ultima(c) ? '<button class="btn" data-aovivo style="flex:0 0 auto">Ao vivo</button>' : (ultima(c) ? '<button class="btn" data-copiar style="flex:0 0 auto">Copiar</button>' : '')) + '<button class="btn primary" data-publicar ' + (mudou(c) ? '' : 'disabled') + '>Publicar v' + proxima + '</button></div>';
+  h += '<div class="pubBar">' + (nuvem.user ? '<button class="btn" data-escala style="flex:0 0 auto">Escala</button>' : '') + (nuvem.user && ultima(c) ? '<button class="btn" data-aovivo style="flex:0 0 auto">Ao vivo</button>' : (ultima(c) ? '<button class="btn" data-copiar style="flex:0 0 auto">Copiar</button>' : '')) + '<button class="btn primary" data-publicar ' + (mudou(c) ? '' : 'disabled') + '>Publicar v' + proxima + '</button></div>';
   el.innerHTML = h;
 }
 
@@ -853,6 +871,211 @@ var banco = {
   }
 };
 
+/* ---------------- equipe e escala (só equipe de mídia; decisões de 15/11) ----------------
+ * equipe/<código>: uma pessoa {owner, nome, whatsapp, funcoes[], indisponivel[datas],
+ *   escalas{chave:{cultoId, culto, data, hora, funcao, atribuidoEm}}, respostas{chave:{estado, motivo, em}}}
+ *   O código (longo e aleatório) é o link pessoal: a pessoa abre ?e=<código> sem senha, vê as escalas,
+ *   responde e marca os dias que não pode (as regras só deixam ela mudar respostas e indisponivel).
+ * escalas/<cultoId>: {owner, culto{nome,data,hora}, vagas[{id, funcao, pessoa}]}
+ * perfis/<uid>: funcoes[] e modeloEscala[] (as vagas que todo culto novo começa tendo). */
+var FUNCOES = ['Projeção', 'Transmissão', 'Câmera', 'Som', 'Fotos'];
+var MODELO = ['Projeção', 'Transmissão', 'Câmera'];
+var DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+function codigo(){ var a = new Uint8Array(18), t = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789', s = ''; crypto.getRandomValues(a); a.forEach(function(n){ s += t[n % t.length]; }); return s; }
+function linkPessoal(id){ return location.origin + location.pathname + '?e=' + id; }
+function quando(data, hora){ var d = new Date(data + 'T12:00'); return isNaN(d) ? (data || '') : DIAS[d.getDay()] + ' ' + data.slice(8, 10) + '/' + data.slice(5, 7) + (hora ? ' às ' + hora : ''); }
+function whats(n){ var d = String(n || '').replace(/\D/g, ''); if (d.length === 10 || d.length === 11) d = '55' + d; return d; }
+var equipe = {
+  pessoas: [], funcoes: FUNCOES.slice(), modelo: MODELO.slice(), escalas: {}, parar_: [], aberto: null,
+  ouvir: function(){
+    equipe.parar();
+    var F = nuvem.m, fs = nuvem.fs, u = nuvem.user.uid;
+    equipe.parar_.push(F.onSnapshot(F.query(F.collection(fs, 'equipe'), F.where('owner', '==', u)), function(snap){
+      var l = []; snap.forEach(function(d){ var x = d.data(); x.id = d.id; l.push(x); });
+      l.sort(function(a, b){ return (a.nome || '').localeCompare(b.nome || '', 'pt'); });
+      equipe.pessoas = l; equipe.desenhar();
+    }, function(e){ console.warn('equipe', e); equipe.erro = true; equipe.desenhar(); }));
+    equipe.parar_.push(F.onSnapshot(F.query(F.collection(fs, 'escalas'), F.where('owner', '==', u)), function(snap){
+      var m = {}; snap.forEach(function(d){ m[d.id] = d.data(); });
+      equipe.escalas = m; equipe.desenhar();
+    }, function(e){ console.warn('escalas', e); }));
+    F.getDoc(F.doc(fs, 'perfis', u)).then(function(d){
+      var x = d.exists() ? d.data() : {};
+      if (Array.isArray(x.funcoes) && x.funcoes.length) equipe.funcoes = x.funcoes;
+      if (Array.isArray(x.modeloEscala)) equipe.modelo = x.modeloEscala;
+      equipe.desenhar();
+    }, function(){});
+  },
+  parar: function(){ equipe.parar_.forEach(function(f){ try { f(); } catch (e) {} }); equipe.parar_ = []; equipe.pessoas = []; equipe.escalas = {}; equipe.fechar(); },
+  perfil: function(dados){ nuvem.m.setDoc(nuvem.m.doc(nuvem.fs, 'perfis', nuvem.user.uid), dados, {merge: true}).catch(function(e){ console.warn(e); }); },
+  pessoa: function(id){ return equipe.pessoas.find(function(p){ return p.id === id; }) || null; },
+  mudar: function(id, dados){ nuvem.m.updateDoc(nuvem.m.doc(nuvem.fs, 'equipe', id), dados).catch(function(e){ console.warn(e); toast('Não deu para salvar (' + (e && e.code || 'erro') + ')'); }); },
+
+  /* ---- painel ---- */
+  abrir: function(tipo){
+    equipe.aberto = tipo;
+    var el = document.getElementById('painel'); el.style.display = 'flex';
+    equipe.desenhar();
+  },
+  fechar: function(){ equipe.aberto = null; var el = document.getElementById('painel'); if (el) { el.style.display = 'none'; el.innerHTML = ''; } },
+  desenhar: function(){
+    var el = document.getElementById('painel'); if (!el || !equipe.aberto) return;
+    var foco = document.activeElement && document.activeElement.id, ini = foco && document.activeElement.selectionStart;
+    el.innerHTML = equipe.aberto === 'equipe' ? equipe.htmlEquipe() : equipe.htmlEscala(culto());
+    if (foco && document.getElementById(foco)) { var f = document.getElementById(foco); f.focus(); try { f.setSelectionRange(ini, ini); } catch (e) {} }
+  },
+
+  htmlEquipe: function(){
+    var h = '<div class="bar"><button class="btn link" data-eq="fechar">‹ Voltar</button><span class="t">Equipe de mídia</span></div><div class="wrap">';
+    h += '<div class="card full"><div class="lbl">Funções</div><div class="fchips">' + equipe.funcoes.map(function(f, k){
+      return '<button data-eq="tirarFuncao" data-k="' + k + '" title="Tirar esta função">' + esc(f) + ' ×</button>';
+    }).join('') + '</div><form class="send" data-eqform="funcao"><input id="eqNovaFuncao" placeholder="Nova função (ex.: Iluminação)" autocomplete="off"><button class="btn">Adicionar</button></form></div>';
+    h += '<div class="card full"><div class="lbl">Pessoas · ' + equipe.pessoas.length + '</div>';
+    if (equipe.erro) h += '<div class="msg bad">Sem permissão: cole as regras novas (firestore.rules) no console do Firebase.</div>';
+    h += '<form class="send" data-eqform="pessoa"><input id="eqNome" placeholder="Nome" autocomplete="off" required><input id="eqWhats" placeholder="WhatsApp com DDD" inputmode="tel" autocomplete="off"><button class="btn primary">Adicionar pessoa</button></form>';
+    if (!equipe.pessoas.length) h += '<div class="muted small">Ninguém ainda. Adicione as pessoas da equipe de mídia e marque o que cada uma faz.</div>';
+    equipe.pessoas.forEach(function(p){
+      var nao = (p.indisponivel || []).filter(function(d){ return d >= hojeISO(); }).sort();
+      h += '<div class="eqRow"><input data-eqcampo="nome" data-id="' + p.id + '" value="' + esc(p.nome || '') + '" aria-label="Nome">' +
+        '<input data-eqcampo="whatsapp" data-id="' + p.id + '" value="' + esc(p.whatsapp || '') + '" placeholder="WhatsApp" inputmode="tel" aria-label="WhatsApp">' +
+        '<div><div class="fchips">' + equipe.funcoes.map(function(f){
+          var on = (p.funcoes || []).indexOf(f) >= 0;
+          return '<button class="' + (on ? 'on' : '') + '" data-eq="funcaoPessoa" data-id="' + p.id + '" data-f="' + esc(f) + '">' + esc(f) + '</button>';
+        }).join('') + '</div>' + (nao.length ? '<div class="muted small" style="margin-top:4px">Não pode: ' + nao.map(function(d){ return quando(d); }).join(', ') + '</div>' : '') + '</div>' +
+        '<div class="fchips"><button data-eq="copiarLink" data-id="' + p.id + '">Copiar link</button><button data-eq="remover" data-id="' + p.id + '" title="Tirar da equipe">Remover</button></div></div>';
+    });
+    return h + '</div></div>';
+  },
+
+  /* ---- escala de um culto ---- */
+  vagas: function(c){
+    var e = equipe.escalas[c.id];
+    if (e && Array.isArray(e.vagas)) return e.vagas;
+    return equipe.modelo.map(function(f){ return {id: uid(), funcao: f, pessoa: ''}; });
+  },
+  chave: function(c, v){ return c.id + '_' + v.id; },
+  estado: function(c, v){
+    if (!v.pessoa) return 'vazio';
+    var p = equipe.pessoa(v.pessoa); if (!p) return 'vazio';
+    var k = equipe.chave(c, v), e = (p.escalas || {})[k], r = (p.respostas || {})[k];
+    if (r && e && r.em >= e.atribuidoEm) return r.estado;
+    return 'pendente';
+  },
+  servicos: function(p, c){
+    /* quantas vezes serviu nos 60 dias antes deste culto (sem contar este) */
+    var ini = new Date(new Date(c.data + 'T12:00') - 60 * 864e5).toISOString().slice(0, 10);
+    return Object.values(p.escalas || {}).filter(function(e){ return e.cultoId !== c.id && e.data >= ini && e.data <= c.data; }).length;
+  },
+  htmlEscala: function(c){
+    if (!c) return '';
+    var vagas = equipe.vagas(c), salva = !!equipe.escalas[c.id];
+    var h = '<div class="bar"><button class="btn link" data-eq="fechar">‹ Roteiro</button><span class="t">Escala · ' + esc(c.nome || 'Culto') + ' · ' + esc(quando(c.data, c.hora)) + '</span>' +
+      '<button class="btn small" data-eq="abrirEquipe">Equipe</button></div><div class="wrap"><div class="card full">';
+    if (!equipe.pessoas.length) h += '<div class="msg">Cadastre a equipe primeiro (botão Equipe, no alto).</div>';
+    if (!salva) h += '<div class="muted small">Vagas do modelo. Escolha as pessoas: a escala é salva na hora.</div>';
+    vagas.forEach(function(v, k){
+      var est = equipe.estado(c, v), p = equipe.pessoa(v.pessoa), r = p && (p.respostas || {})[equipe.chave(c, v)];
+      var nomes = {vazio: 'Sem pessoa', pendente: 'Esperando resposta', confirmado: 'Confirmou', recusado: 'Não pode'};
+      h += '<div class="vaga"><select data-vaga="funcao" data-k="' + k + '" aria-label="Função">' + equipe.funcoes.concat(equipe.funcoes.indexOf(v.funcao) < 0 ? [v.funcao] : []).map(function(f){
+          return '<option' + (f === v.funcao ? ' selected' : '') + '>' + esc(f) + '</option>'; }).join('') + '</select>' +
+        '<select data-vaga="pessoa" data-k="' + k + '" aria-label="Pessoa">' + equipe.opcoes(c, v, vagas) + '</select>' +
+        '<span class="estado ' + est + '" title="' + esc(r && r.motivo || '') + '">' + nomes[est] + (est === 'recusado' && r && r.motivo ? ': ' + esc(r.motivo) : '') + '</span>' +
+        '<button class="btn small" data-eq="avisar" data-k="' + k + '" ' + (p && p.whatsapp ? '' : 'disabled title="Sem WhatsApp cadastrado"') + '>Avisar</button>' +
+        '<button class="btn link small" data-eq="tirarVaga" data-k="' + k + '" title="Tirar esta vaga">×</button></div>';
+    });
+    h += '<div class="row" style="justify-content:flex-start;gap:8px;margin-top:8px"><button class="btn small" data-eq="novaVaga">+ Vaga</button>' +
+      '<button class="btn link small" data-eq="modelo">Usar estas vagas como modelo</button></div>';
+    h += '<div class="muted small" style="margin-top:6px">"Avisar" abre o WhatsApp com a mensagem e o link pessoal; é só enviar. A pessoa responde pelo link.</div>';
+    return h + '</div></div>';
+  },
+  opcoes: function(c, v, vagas){
+    var outros = vagas.filter(function(x){ return x !== v && x.pessoa; }).map(function(x){ return x.pessoa; });
+    var lista = equipe.pessoas.map(function(p){
+      var faz = (p.funcoes || []).indexOf(v.funcao) >= 0, nao = (p.indisponivel || []).indexOf(c.data) >= 0, ja = outros.indexOf(p.id) >= 0;
+      return {p: p, faz: faz, nao: nao, ja: ja, n: equipe.servicos(p, c)};
+    });
+    /* sugestão: quem faz a função, pode no dia, não está em outra vaga e serviu menos */
+    lista.sort(function(a, b){
+      var pa = (a.faz ? 0 : 2) + (a.nao || a.ja ? 1 : 0), pb = (b.faz ? 0 : 2) + (b.nao || b.ja ? 1 : 0);
+      return pa - pb || a.n - b.n || (a.p.nome || '').localeCompare(b.p.nome || '', 'pt');
+    });
+    var h = '<option value="">— escolher —</option>', sugerido = false;
+    lista.forEach(function(x){
+      var nota = x.nao ? ' · não pode nesse dia' : x.ja ? ' · já está em outra vaga' : !x.faz ? ' · não é da função' : ' · serviu ' + x.n + '× em 60 dias';
+      var dica = !sugerido && x.faz && !x.nao && !x.ja ? ' ★ sugerido' : '';
+      if (dica) sugerido = true;
+      h += '<option value="' + x.p.id + '"' + (x.p.id === v.pessoa ? ' selected' : '') + (x.nao && x.p.id !== v.pessoa ? ' disabled' : '') + '>' + esc(x.p.nome || 'Sem nome') + dica + nota + '</option>';
+    });
+    return h;
+  },
+  /* Salva a escala e espelha em cada pessoa (é o que o link pessoal mostra). */
+  salvar: function(c, vagas){
+    var F = nuvem.m, fs = nuvem.fs, u = nuvem.user.uid, agora = new Date().toISOString();
+    var antes = (equipe.escalas[c.id] && equipe.escalas[c.id].vagas) || [];
+    equipe.escalas[c.id] = {owner: u, culto: {nome: c.nome || '', data: c.data || '', hora: c.hora || ''}, vagas: vagas};
+    F.setDoc(F.doc(fs, 'escalas', c.id), equipe.escalas[c.id]).catch(function(e){ console.warn(e); toast('Não deu para salvar a escala'); });
+    var mudancas = {};
+    var poe = function(id, campo, valor){ (mudancas[id] = mudancas[id] || {})[campo] = valor; };
+    antes.forEach(function(v){
+      var agoraV = vagas.find(function(x){ return x.id === v.id; });
+      if (v.pessoa && (!agoraV || agoraV.pessoa !== v.pessoa)) poe(v.pessoa, 'escalas.' + equipe.chave(c, v), F.deleteField());
+    });
+    vagas.forEach(function(v){
+      if (!v.pessoa) return;
+      var p = equipe.pessoa(v.pessoa), velho = p && (p.escalas || {})[equipe.chave(c, v)];
+      var mesma = velho && velho.funcao === v.funcao && velho.data === (c.data || '') && velho.hora === (c.hora || '') && velho.culto === (c.nome || '');
+      if (mesma) return;
+      poe(v.pessoa, 'escalas.' + equipe.chave(c, v), {cultoId: c.id, culto: c.nome || 'Culto', data: c.data || '', hora: c.hora || '', funcao: v.funcao,
+        atribuidoEm: velho && velho.funcao === v.funcao ? velho.atribuidoEm : agora});
+    });
+    Object.keys(mudancas).forEach(function(id){ if (equipe.pessoa(id)) equipe.mudar(id, mudancas[id]); });
+    equipe.desenhar();
+  },
+  avisar: function(c, v){
+    var p = equipe.pessoa(v.pessoa); if (!p || !p.whatsapp) return;
+    var texto = 'Olá, ' + (p.nome || '').split(' ')[0] + '! Você está na escala de *' + v.funcao + '* no *' + (c.nome || 'culto') + '* (' + quando(c.data, c.hora) + ').\n' +
+      'Confirme ou avise se não puder por aqui: ' + linkPessoal(p.id);
+    window.open('https://wa.me/' + whats(p.whatsapp) + '?text=' + encodeURIComponent(texto), '_blank', 'noopener');
+  },
+  clique: function(t){
+    var b = t.closest('[data-eq]'); if (!b) return false;
+    var a = b.dataset.eq, c = culto();
+    if (a === 'fechar') { equipe.fechar(); return true; }
+    if (a === 'abrirEquipe') { equipe.abrir('equipe'); return true; }
+    if (a === 'tirarFuncao') { var f = equipe.funcoes[+b.dataset.k]; dialogo('Tirar a função "' + f + '"?', 'As pessoas continuam na equipe; só a função sai da lista.', 'Tirar', function(){ equipe.funcoes.splice(+b.dataset.k, 1); equipe.perfil({funcoes: equipe.funcoes}); equipe.desenhar(); }); return true; }
+    if (a === 'funcaoPessoa') { var p = equipe.pessoa(b.dataset.id); if (!p) return true; var l = (p.funcoes || []).slice(), i = l.indexOf(b.dataset.f); if (i >= 0) l.splice(i, 1); else l.push(b.dataset.f); p.funcoes = l; equipe.mudar(p.id, {funcoes: l}); equipe.desenhar(); return true; }
+    if (a === 'copiarLink') { var link = linkPessoal(b.dataset.id); (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(function(){ toast('Link pessoal copiado.'); }, function(){ prompt('Copie o link:', link); }); return true; }
+    if (a === 'remover') { var pr = equipe.pessoa(b.dataset.id); dialogo('Remover ' + (pr && pr.nome || 'esta pessoa') + '?', 'Ela sai da equipe e o link pessoal deixa de funcionar.', 'Remover', function(){ nuvem.m.deleteDoc(nuvem.m.doc(nuvem.fs, 'equipe', b.dataset.id)).catch(function(e){ console.warn(e); }); }); return true; }
+    if (!c) return true;
+    var vagas = equipe.vagas(c).map(function(v){ return Object.assign({}, v); }), k = +b.dataset.k;
+    if (a === 'novaVaga') { vagas.push({id: uid(), funcao: equipe.funcoes[0] || 'Projeção', pessoa: ''}); equipe.salvar(c, vagas); }
+    else if (a === 'tirarVaga') { vagas.splice(k, 1); equipe.salvar(c, vagas); }
+    else if (a === 'modelo') { equipe.modelo = vagas.map(function(v){ return v.funcao; }); equipe.perfil({modeloEscala: equipe.modelo}); toast('Modelo salvo: os próximos cultos começam com estas vagas.'); }
+    else if (a === 'avisar') equipe.avisar(c, vagas[k]);
+    return true;
+  },
+  mudanca: function(t){
+    var c = culto();
+    if (t.dataset.vaga && c) {
+      var vagas = equipe.vagas(c).map(function(v){ return Object.assign({}, v); }), v = vagas[+t.dataset.k]; if (!v) return;
+      v[t.dataset.vaga] = t.value; equipe.salvar(c, vagas); return;
+    }
+    if (t.dataset.eqcampo) { var d = {}; d[t.dataset.eqcampo] = t.value.trim(); equipe.mudar(t.dataset.id, d); }
+  },
+  enviarForm: function(f){
+    if (f.dataset.eqform === 'funcao') {
+      var i = document.getElementById('eqNovaFuncao'), v = i.value.trim(); if (!v || equipe.funcoes.indexOf(v) >= 0) return;
+      equipe.funcoes.push(v); equipe.perfil({funcoes: equipe.funcoes}); i.value = ''; equipe.desenhar();
+    } else if (f.dataset.eqform === 'pessoa') {
+      var n = document.getElementById('eqNome'), w = document.getElementById('eqWhats'); if (!n.value.trim()) return;
+      nuvem.m.setDoc(nuvem.m.doc(nuvem.fs, 'equipe', codigo()), {owner: nuvem.user.uid, nome: n.value.trim(), whatsapp: w.value.trim(), funcoes: [], indisponivel: [], escalas: {}, respostas: {}, criadoEm: new Date().toISOString()})
+        .catch(function(e){ console.warn(e); toast('Não deu para adicionar (' + (e && e.code || 'erro') + ')'); });
+      n.value = ''; w.value = ''; n.focus();
+    }
+  }
+};
+function hojeISO(){ var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+
 /* ---------------- ao vivo (bloco 6) ----------------
  * Durante o culto, pela conta:
  * - "Agora no telão": a Projeção escreve em aoVivo/<culto>.agora o item que está no telão;
@@ -1020,6 +1243,9 @@ document.addEventListener('click', function(e){
   if (t.closest('[data-publicar]')) return publicar();
   if (t.closest('[data-copiar]')) return copiarParaProjecao();
   if (t.closest('[data-aovivo]')) return aoVivo.abrir();
+  if (t.closest('[data-escala]')) return equipe.abrir('escala');
+  if (t.id === 'btnEquipe') return equipe.abrir('equipe');
+  if (equipe.clique(t)) return;
   var bm = t.closest('[data-musica]'); if (bm) return banco.escolher(bm.dataset.musica);
   var ba = t.closest('[data-apple]'); if (ba) return banco.escolherApple(+ba.dataset.apple);
   if (t.closest('[data-trocarmusica]')) return banco.trocar();
@@ -1072,8 +1298,14 @@ document.addEventListener('input', function(e){
   atualizarStatus();
 });
 document.addEventListener('change', function(e){
+  if (e.target.dataset && (e.target.dataset.vaga || e.target.dataset.eqcampo)) return equipe.mudanca(e.target);
   var i = item();
   if (i && e.target.id === 'iDestino') { i.destino = e.target.value; salvar(); atualizarLinha(i); atualizarStatus(); }
+});
+
+document.addEventListener('submit', function(e){
+  var f = e.target.closest && e.target.closest('[data-eqform]'); if (!f) return;
+  e.preventDefault(); equipe.enviarForm(f);
 });
 
 /* Arrastar pelo ⋮⋮ (mouse e dedo): mostra a linha onde o item vai cair. */
@@ -1109,8 +1341,74 @@ function fimArrasto(){
 document.addEventListener('pointerup', fimArrasto);
 document.addEventListener('pointercancel', fimArrasto);
 
+/* ---------------- página pessoal do voluntário (?e=<código>, sem senha) ---------------- */
+function paginaPessoal(cfg, cod){
+  document.getElementById('app').style.display = 'none';
+  var el = document.createElement('section'); el.className = 'live'; el.id = 'pessoal'; el.style.display = 'flex';
+  document.body.appendChild(el);
+  el.innerHTML = '<div class="bar"><span class="t">PROJETO LIVE · Escala</span></div><div class="wrap"><div class="card full muted">Carregando…</div></div>';
+  var ref = null, F = null, dados = null, motivoDe = null;
+  Promise.all([import(FB_SDK + 'firebase-app.js'), import(FB_SDK + 'firebase-firestore.js')]).then(function(mods){
+    F = mods[1];
+    var fs = F.getFirestore(mods[0].initializeApp(cfg));
+    ref = F.doc(fs, 'equipe', cod);
+    F.onSnapshot(ref, function(d){ dados = d.exists() ? d.data() : null; desenhar(); },
+      function(e){ console.warn(e); dados = null; desenhar(); });
+  });
+  function salvar(campos){ campos.vistoEm = new Date().toISOString(); F.updateDoc(ref, campos).catch(function(e){ console.warn(e); toast('Não deu para enviar. Confira a internet e tente de novo.'); }); }
+  function desenhar(){
+    var w = el.querySelector('.wrap');
+    if (!dados) { w.innerHTML = '<div class="card full">Este link não vale mais. Peça um novo ao diretor da sua igreja.</div>'; return; }
+    var hoje = hojeISO(), nomes = {pendente: 'Esperando sua resposta', confirmado: 'Você confirmou', recusado: 'Você avisou que não pode'};
+    var lista = Object.keys(dados.escalas || {}).map(function(k){ return Object.assign({chave: k}, dados.escalas[k]); })
+      .filter(function(e){ return e.data >= hoje; }).sort(function(a, b){ return (a.data + a.hora).localeCompare(b.data + b.hora); });
+    var h = '<div class="card full"><div class="big" style="font-size:22px;font-weight:700">Olá, ' + esc((dados.nome || '').split(' ')[0]) + '!</div>' +
+      '<div class="muted small">Aqui ficam as suas escalas na equipe de mídia. Responda cada uma.</div></div>';
+    h += '<div class="card full"><div class="lbl">Próximas escalas</div>';
+    if (!lista.length) h += '<div class="muted">Nenhuma escala marcada por enquanto.</div>';
+    lista.forEach(function(e){
+      var r = (dados.respostas || {})[e.chave], est = r && r.em >= e.atribuidoEm ? r.estado : 'pendente';
+      h += '<div style="border-top:1px solid var(--line);padding:12px 0;display:flex;flex-direction:column;gap:8px">' +
+        '<div><b>' + esc(e.funcao) + '</b> · ' + esc(e.culto) + '</div><div class="muted">' + esc(quando(e.data, e.hora)) + '</div>' +
+        '<div><span class="estado ' + est + '">' + nomes[est] + (est === 'recusado' && r.motivo ? ': ' + esc(r.motivo) : '') + '</span></div>';
+      if (motivoDe === e.chave) h += '<form class="send" data-pmotivo="' + e.chave + '"><input id="pMotivo" placeholder="Motivo (opcional)" autocomplete="off"><button class="btn primary">Enviar</button></form>';
+      else h += '<div class="row" style="justify-content:flex-start;gap:8px"><button class="btn primary" data-presp="confirmado" data-k="' + e.chave + '">Confirmo</button>' +
+        '<button class="btn" data-presp="recusado" data-k="' + e.chave + '">Não posso</button></div>';
+      h += '</div>';
+    });
+    h += '</div>';
+    var nao = (dados.indisponivel || []).filter(function(d){ return d >= hoje; }).sort();
+    h += '<div class="card full"><div class="lbl">Dias que não posso servir</div>' +
+      (nao.length ? '<div class="fchips">' + nao.map(function(d){ return '<button data-pnao="' + d + '" title="Tirar">' + esc(quando(d)) + ' ×</button>'; }).join('') + '</div>' : '<div class="muted small">Nenhum. Marque aqui os dias em que você não pode, para o diretor não te escalar.</div>') +
+      '<form class="send" data-pdia><input id="pDia" type="date" min="' + hoje + '" required><button class="btn">Marcar</button></form></div>';
+    w.innerHTML = h;
+    if (motivoDe) { var m = document.getElementById('pMotivo'); if (m) m.focus(); }
+  }
+  el.addEventListener('click', function(e){
+    var b = e.target.closest('[data-presp]');
+    if (b) {
+      if (b.dataset.presp === 'recusado') { motivoDe = b.dataset.k; desenhar(); return; }
+      var c = {}; c['respostas.' + b.dataset.k] = {estado: 'confirmado', motivo: '', em: new Date().toISOString()}; salvar(c); return;
+    }
+    var n = e.target.closest('[data-pnao]'); if (n) salvar({indisponivel: F.arrayRemove(n.dataset.pnao)});
+  });
+  el.addEventListener('submit', function(e){
+    e.preventDefault();
+    var f = e.target;
+    if (f.dataset.pmotivo) {
+      var c = {}; c['respostas.' + f.dataset.pmotivo] = {estado: 'recusado', motivo: document.getElementById('pMotivo').value.trim(), em: new Date().toISOString()};
+      motivoDe = null; salvar(c);
+    } else if (f.hasAttribute('data-pdia')) {
+      var d = document.getElementById('pDia').value; if (d) salvar({indisponivel: F.arrayUnion(d)});
+    }
+  });
+}
+
 var cfg = window.PL_FIREBASE;
-if (cfg && cfg.apiKey && cfg.projectId) {
+var codigoPessoal = new URLSearchParams(location.search).get('e');
+if (codigoPessoal && cfg && cfg.apiKey) {
+  paginaPessoal(cfg, codigoPessoal);
+} else if (cfg && cfg.apiKey && cfg.projectId) {
   /* Na conta, o que vale é o que está no Firestore (o cache do modo de teste não entra). */
   db = {cultos: []};
   store.save = function(){};

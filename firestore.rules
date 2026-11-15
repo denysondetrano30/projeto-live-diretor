@@ -44,6 +44,29 @@ service cloud.firestore {
         && request.resource.data.owner == request.auth.uid;
     }
 
+    // Equipe de mídia: cada pessoa é um documento com um código longo e aleatório (o link pessoal).
+    // Quem tem o link (sem login) lê o próprio documento e só pode mudar as respostas, os dias em que
+    // não pode e quando viu. A lista inteira e o resto só a conta da igreja.
+    match /equipe/{codigo} {
+      allow get: if true;
+      allow list: if request.auth != null && resource.data.owner == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.owner == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.owner == request.auth.uid;
+      allow update: if (request.auth != null
+          && resource.data.owner == request.auth.uid
+          && request.resource.data.owner == request.auth.uid)
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['respostas', 'indisponivel', 'vistoEm']);
+    }
+
+    // Escala de cada culto.
+    match /escalas/{cultoId} {
+      allow read, delete: if request.auth != null && resource.data.owner == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.owner == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.owner == request.auth.uid
+        && request.resource.data.owner == request.auth.uid;
+    }
+
     // Preferências de cada conta (as respostas prontas do diretor).
     match /perfis/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
