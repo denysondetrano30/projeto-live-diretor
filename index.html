@@ -3,17 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Projeto Live — Diretor</title>
+<title>Tamo — Diretor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#141418; --panel:#1d1d23; --panel2:#23232b; --line:#2a2a33; --line2:#3a3a46;
-  --text:#ececf1; --muted:#a3a3ad; --blue:#3b6fe0; --blueSoft:#1f3566; --blueText:#dbe6ff;
-  --amber:#e8a33d; --green:#3ecf72; --red:#e5574d; --sel:#4c6fd1;
+  /* Identidade Tamo: preto, branco, cinza; vermelho só para o que está ao vivo ou atrasado. */
+  --bg:#141414; --panel:#1c1c1c; --panel2:#232323; --line:#2a2a2a; --line2:#3a3a3a;
+  --text:#f2f2f2; --muted:#a8a8a8; --blue:#ffffff; --blueSoft:#2a2a2a; --blueText:#ffffff;
+  --amber:#f2f2f2; --green:#8c8c8c; --red:#e5483b; --sel:#d0d0d0;
 }
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;font-size:14px}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:Outfit,system-ui,sans-serif;font-size:15px}
 button,input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
 button{cursor:pointer}
 .app{display:flex;flex-direction:column;height:100%}
@@ -224,6 +225,47 @@ aside.editor{border-left:1px solid var(--line);padding:20px 18px;display:flex;fl
 .live .sug{display:flex;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding-top:8px;font-size:13px}
 .live .full{grid-column:1/-1}
 @media (max-width: 900px){ .live .wrap{grid-template-columns:1fr;padding:12px} }
+
+/* ---- Identidade Tamo (Bloco): por cima das cores antigas ---- */
+.brand{display:flex;align-items:center;gap:10px;letter-spacing:0}
+.marca{position:relative;width:30px;height:30px;border-radius:8px;background:#fff;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.marca span{font-weight:800;font-size:27px;line-height:1;color:#141414;margin-top:-3px}
+.marca i{position:absolute;right:4px;top:4px;width:5px;height:5px;border-radius:50%;background:var(--red)}
+.brand .nome{font-weight:200;font-size:24px;letter-spacing:-.5px}
+.btn{border-radius:10px}
+.btn.primary{background:#fff;color:#141414}
+.btn.primary:hover{background:#e6e6e6}
+.btn.primary:disabled{background:#2a2a2a;color:#6e6e6e}
+.titleIn{font-weight:600}
+.culto.on,.item.on,.tarefa.on{border-color:#8c8c8c}
+.item.dropBefore{box-shadow:0 -3px 0 #fff}.item.dropAfter{box-shadow:0 3px 0 #fff}
+.chip.letra{background:#2a2a2a;color:#fff}
+.chip.midia{background:#232323;color:#d0d0d0;box-shadow:inset 0 0 0 1px #3a3a3a}
+.warnTxt,.warn{color:#fff}
+.ok{color:#d0d0d0}.bad{color:#ff8a80}
+.abas button.on,.fchips button.on,.live .chips button.on{background:#fff;border-color:#fff;color:#141414}
+.estado.a_fazer{background:#2a2a2a;color:#d0d0d0}
+.estado.fazendo{background:transparent;color:#f2f2f2;box-shadow:inset 0 0 0 1px #8c8c8c}
+.estado.para_aprovar,.estado.pendente{background:#fff;color:#141414;font-weight:600}
+.estado.ajustar,.estado.recusado{background:rgba(229,72,59,.16);color:#ff8a80}
+.estado.pronto,.estado.confirmado{background:#1f1f1f;color:#8c8c8c;box-shadow:inset 0 0 0 1px #2e2e2e}
+.tag.culto{background:#3a3a3a}
+.tag.evento{background:#2a2a2a;border-left:3px solid #fff}
+.tag.marco{background:#1f1f1f;border-left:3px solid #8c8c8c}
+.tag.prazo{background:#232323;border-left:3px solid #d0d0d0}
+.tag.prazo.atrasada{background:rgba(229,72,59,.16);border-left-color:var(--red)}
+.mes .dia.hoje{outline:2px solid #fff}
+.evTag{background:#fff;color:#141414}
+.marcoChip{background:#232323;border-left-color:#8c8c8c}
+.fchips button.sim{background:#fff;border-color:#fff;color:#141414}
+.usar{background:transparent;color:#fff;border:1px solid #8c8c8c}
+.usar:hover{border-color:#fff}
+.esperando{background:#fff;color:#141414;border:0}
+.cartao .org{color:#bdbdbd}
+.lnk a,.entregaBox a,.verEnt{text-decoration:underline;text-underline-offset:3px}
+.contador{background:var(--red)}
+.live .m.eu{background:#2a2a2a;color:#fff}
+.escolha:hover{border-color:#8c8c8c}
 </style>
 </head>
 <body>
@@ -231,8 +273,8 @@ aside.editor{border-left:1px solid var(--line);padding:20px 18px;display:flex;fl
 <script src="firebase-config.js"></script>
 <div class="app" id="app" data-view="cultos">
   <header class="top">
-    <div class="brand">PROJETO LIVE</div>
-    <div class="muted small">Diretor</div>
+    <div class="brand"><span class="marca"><span>t</span><i></i></span><span class="nome">tamo</span></div>
+    <div class="muted">Diretor</div>
     <div style="flex:1"></div>
     <div class="muted small" id="modeNote">Modo de teste: os dados ficam só neste navegador</div>
     <button class="btn small" id="btnPlano" style="display:none">Demandas</button>
@@ -242,7 +284,7 @@ aside.editor{border-left:1px solid var(--line);padding:20px 18px;display:flex;fl
   <div id="login" style="display:none;flex:1;align-items:center;justify-content:center;padding:20px">
     <form id="loginForm" class="dialog" style="max-width:360px">
       <div style="font-weight:700;font-size:18px">Entrar</div>
-      <div class="muted small">Conta do Projeto Live da sua igreja.</div>
+      <div class="muted small">Conta do Tamo da sua igreja.</div>
       <div class="field"><label for="lEmail">E-mail</label><input id="lEmail" type="email" autocomplete="username" required></div>
       <div class="field"><label for="lSenha">Senha</label><input id="lSenha" type="password" autocomplete="current-password" required></div>
       <div class="msg bad" id="lErro"></div>
@@ -1468,7 +1510,7 @@ var plano = {
       var dia = new Date(ini.getTime() + i * 864e5 + 12 * 3600e3), di = iso(dia);
       h += '<div class="dia' + (dia.getMonth() !== m ? ' fora' : '') + (di === hoje ? ' hoje' : '') + '" data-dia="' + di + '"><span class="n">' + dia.getDate() + '</span>' + (porDia[di] || []).join('') + '</div>';
     }
-    h += '</div><div class="muted small" style="margin-top:8px">Azul: cultos · roxo: eventos e datas importantes · amarelo: prazos (vermelho = atrasado). Toque num dia vazio para criar algo nele.</div></div>';
+    h += '</div><div class="muted small" style="margin-top:8px">Cultos em cinza · eventos com borda branca · datas importantes com borda cinza · prazos com borda clara (vermelho = atrasado). Toque num dia vazio para criar algo nele.</div></div>';
     return h;
   },
   menuDia: function(data, x, y){
