@@ -165,6 +165,40 @@ aside.editor{border-left:1px solid var(--line);padding:20px 18px;display:flex;fl
 .escolha{display:flex;flex-direction:column;gap:2px;width:100%;text-align:left;background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;color:var(--text);cursor:pointer}
 .escolha:hover{border-color:var(--blue)}
 .usar{background:rgba(60,110,230,.18);color:#9db8ff;border:1px solid rgba(60,110,230,.5);border-radius:16px;padding:4px 12px;font-weight:600;cursor:pointer;font-size:13px}
+.lblSec{color:var(--muted);font-size:11px;letter-spacing:.6px;text-transform:uppercase;font-weight:600}
+.lblSec .muted{text-transform:none;letter-spacing:0;font-weight:500;margin-left:4px}
+.culto.ev .t{display:flex;align-items:center;gap:6px}
+.evTag{background:rgba(156,98,230,.28);color:#d9c2ff;border-radius:5px;padding:1px 6px;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;flex:none}
+.secao,.tarefas{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:14px}
+.tarefa{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;cursor:pointer}
+.tarefa:hover{border-color:var(--line2)}
+.tarefa.on{border-color:var(--sel);background:var(--panel2)}
+.tarefa.feita .t{color:var(--muted);text-decoration:line-through}
+.tarefa .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tarefa .s{color:var(--muted);font-size:12px}
+.addTarefa{display:flex;gap:6px;flex-wrap:wrap}
+.addTarefa input,.addTarefa select{background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:8px 10px;min-height:40px;color:var(--text);color-scheme:dark}
+.addTarefa input:first-child{flex:1;min-width:200px}
+.addTarefa .btn{min-height:40px}
+.marcoChip{display:inline-flex;align-items:center;gap:6px;background:rgba(156,98,230,.16);border-left:3px solid #9c62e6;border-radius:6px;padding:4px 4px 4px 8px;font-size:13px}
+.marcoChip button{background:none;border:0;color:var(--muted);padding:0 4px}
+.fchips button.sim{background:rgba(76,175,80,.2);border-color:rgba(76,175,80,.5);color:#9be09f;font-weight:600}
+.entregaBox{background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.entregaBox a{color:var(--blueText);font-weight:600}
+.quadroTopo{display:flex;flex-direction:column;gap:10px;padding:14px 16px 4px;max-width:1300px;width:100%;margin:0 auto}
+.esperando{background:rgba(242,184,75,.12);border:1px solid rgba(242,184,75,.35);color:#f2d08b;border-radius:10px;padding:10px 14px}
+.quadro{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:12px;padding:12px 16px 16px;max-width:1300px;width:100%;margin:0 auto;overflow-x:auto;align-items:start}
+.coluna{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:160px}
+.coluna.colAlvo{border-color:var(--sel);background:var(--panel2)}
+.colTopo{display:flex;justify-content:space-between;font-weight:700;padding:2px 4px 4px}
+.cartao{background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px;cursor:grab}
+.cartao:hover{border-color:#55556a}
+.cartao.arrastando{opacity:.4}
+.cartao .t{font-weight:600;line-height:1.3}
+.cartao .org{color:#cdb6ff;font-size:12px}
+.cartao .pe{display:flex;justify-content:space-between;gap:8px;font-size:12px}
+.verEnt{color:var(--blueText);font-weight:600;font-size:13px;align-self:center;margin-right:2px}
+@media (max-width: 900px){ .quadro{grid-template-columns:repeat(4,minmax(240px,82vw))} }
 .contador{background:#e5574d;color:#fff;border-radius:10px;padding:0 6px;font-size:11px;margin-left:6px}
 @media (max-width: 900px){ .dem,.grade2{grid-template-columns:1fr} .mes .dia{min-height:64px} }
 /* Ao vivo */
@@ -201,7 +235,7 @@ aside.editor{border-left:1px solid var(--line);padding:20px 18px;display:flex;fl
     <div class="muted small">Diretor</div>
     <div style="flex:1"></div>
     <div class="muted small" id="modeNote">Modo de teste: os dados ficam só neste navegador</div>
-    <button class="btn small" id="btnPlano" style="display:none">Planejamento</button>
+    <button class="btn small" id="btnPlano" style="display:none">Demandas</button>
     <button class="btn small" id="btnEquipe" style="display:none">Equipe</button>
     <button class="btn link small" id="sair" style="display:none">Sair</button>
   </header>
@@ -282,7 +316,7 @@ var store = {
 };
 
 var db = store.load();
-var ui = {cultoId: null, itemId: null, view: 'cultos'};
+var ui = {cultoId: null, itemId: null, eventoId: null, tarefaId: null, view: 'cultos'};
 try { var lembrado = JSON.parse(localStorage.getItem(KEY + '-ui') || 'null'); if (lembrado) { ui.cultoId = lembrado.cultoId; } } catch (e) {}
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -352,7 +386,7 @@ function iniciarNuvem(cfg){
     document.getElementById('sair').addEventListener('click', function(){ A.signOut(nuvem.auth); });
     A.onAuthStateChanged(nuvem.auth, function(user){
       nuvem.user = user;
-      if (!user) { aoVivo.fechar(); banco.parar(); equipe.parar(); plano.parar(); db = {cultos: []}; ui.cultoId = null; ui.itemId = null; ui.view = 'cultos'; telaLogin(true); document.getElementById('modeNote').textContent = ''; render(); return; }
+      if (!user) { aoVivo.fechar(); banco.parar(); equipe.parar(); plano.parar(); db = {cultos: []}; ui.cultoId = null; ui.itemId = null; ui.eventoId = null; ui.tarefaId = null; ui.view = 'cultos'; telaLogin(true); document.getElementById('modeNote').textContent = ''; render(); return; }
       telaLogin(false); aviso('Carregando…');
       banco.ouvir(); equipe.ouvir(); plano.ouvir();
       F.getDocs(F.query(F.collection(nuvem.fs, 'cultos'), F.where('owner', '==', user.uid))).then(function(snap){
@@ -433,33 +467,55 @@ function resumo(i){
 
 function render(){
   document.getElementById('app').dataset.view = ui.view;
-  renderCultos(); renderRoteiro(); renderEditor();
+  renderCultos();
+  if (ui.eventoId && nuvem.user) renderEvento(); else renderRoteiro();
+  renderEditor();
 }
 
+/* Agenda: cultos e eventos juntos. Primeiro os próximos (do mais perto ao mais longe), depois os anteriores. */
 function renderCultos(){
-  var el = document.getElementById('cultos');
-  var lista = db.cultos.slice().sort(function(a, b){ return (b.data || '').localeCompare(a.data || ''); });
-  var h = '<button class="btn" id="novoCulto" style="text-align:left;min-height:44px">+ Novo culto</button>';
+  var el = document.getElementById('cultos'), hoje = hojeISO();
+  var coisas = db.cultos.map(function(c){ return {tipo: 'culto', x: c, data: c.data || '', ate: c.data || ''}; });
+  if (nuvem.user) plano.eventos.forEach(function(e){ coisas.push({tipo: 'evento', x: e, data: e.inicio || '', ate: e.fim || e.inicio || ''}); });
+  var prox = coisas.filter(function(k){ return !k.data || k.ate >= hoje; }).sort(function(a, b){ return (a.data || '9').localeCompare(b.data || '9'); });
+  var ant = coisas.filter(function(k){ return k.data && k.ate < hoje; }).sort(function(a, b){ return b.data.localeCompare(a.data); });
+  var h = nuvem.user ?
+    '<div class="row" style="flex-wrap:nowrap"><button class="btn" data-pl="novo" style="flex:1;text-align:left;min-height:44px">+ Novo</button><button class="btn" data-pl="calendario" style="min-height:44px" title="Calendário do mês">Calendário</button></div>' :
+    '<button class="btn" id="novoCulto" style="text-align:left;min-height:44px">+ Novo culto</button>';
+  var linha = function(k){
+    if (k.tipo === 'culto') {
+      var c = k.x, nt = nuvem.user ? plano.pendentes(plano.tarefasDe('culto', c.id)) : 0;
+      return '<button class="culto' + (c.id === ui.cultoId && !ui.eventoId ? ' on' : '') + '" data-culto="' + c.id + '">' +
+        '<div class="t">' + esc(c.nome || 'Sem nome') + '</div>' +
+        '<div class="s">' + esc(dataCurta(c)) + ' · ' + esc(situacao(c).curto) + (nt ? ' · ' + nt + ' tarefa' + (nt === 1 ? '' : 's') : '') + '</div></button>';
+    }
+    var e = k.x, l = plano.tarefasDe('evento', e.id), ap = l.filter(function(d){ return plano.estado(d) === 'para_aprovar'; }).length, ab = plano.pendentes(l);
+    var dt = e.inicio ? e.inicio.slice(8, 10) + '/' + e.inicio.slice(5, 7) + (e.fim && e.fim !== e.inicio ? ' a ' + e.fim.slice(8, 10) + '/' + e.fim.slice(5, 7) : '') : 'Sem data';
+    return '<button class="culto ev' + (e.id === ui.eventoId ? ' on' : '') + '" data-evento="' + e.id + '">' +
+      '<div class="t"><span class="evTag">Evento</span>' + esc(e.nome) + '</div>' +
+      '<div class="s">' + esc(dt) + (ab ? ' · ' + ab + ' tarefa' + (ab === 1 ? '' : 's') : '') + (ap ? ' · <span class="warnTxt">' + ap + ' para aprovar</span>' : '') + '</div></button>';
+  };
   var mes = null;
-  lista.forEach(function(c){
-    var d = parseData(c.data);
-    var m = d ? MESES[d.getMonth()] + ' ' + d.getFullYear() : 'sem data';
+  var bloco = function(l){ l.forEach(function(k){
+    var d = parseData(k.data), m = d ? MESES[d.getMonth()] + ' ' + d.getFullYear() : 'sem data';
     if (m !== mes) { mes = m; h += '<div class="month">' + esc(m) + '</div>'; }
-    h += '<button class="culto' + (c.id === ui.cultoId ? ' on' : '') + '" data-culto="' + c.id + '">' +
-      '<div class="t">' + esc(c.nome || 'Sem nome') + '</div>' +
-      '<div class="s">' + esc(dataCurta(c)) + ' · ' + esc(situacao(c).curto) + '</div></button>';
-  });
-  if (!lista.length) h += '<div class="empty small">Nenhum culto ainda.<br>Comece em "+ Novo culto".</div>';
+    h += linha(k);
+  }); };
+  if (nuvem.user && ant.length) h += '<div class="lblSec" style="margin:14px 6px 0">Próximos</div>';
+  bloco(prox);
+  if (!prox.length && ant.length) h += '<div class="empty small" style="padding:16px">Nada marcado daqui para frente.</div>';
+  if (ant.length) { mes = null; h += '<div class="lblSec" style="margin:22px 6px 0">Anteriores</div>'; bloco(ant); }
+  if (!coisas.length) h += '<div class="empty small">Nada na agenda ainda.<br>Comece em "+ Novo".</div>';
   el.innerHTML = h;
 }
 
 function renderRoteiro(){
   var el = document.getElementById('roteiro');
   var c = culto();
-  if (!c) { el.innerHTML = '<div class="empty">Escolha um culto à esquerda ou crie um novo.</div>'; return; }
+  if (!c) { el.innerHTML = '<div class="empty">Escolha um culto ou evento na agenda, ou crie um novo.</div>'; return; }
   var s = situacao(c);
   var proxima = (ultima(c) ? ultima(c).n : 0) + 1;
-  var h = '<button class="btn link back" data-voltar="cultos">‹ Cultos</button>' +
+  var h = '<button class="btn link back" data-voltar="cultos">‹ Agenda</button>' +
     '<div class="head"><div style="flex:1;min-width:240px">' +
     '<input class="titleIn" id="cNome" aria-label="Nome do culto" value="' + esc(c.nome) + '" placeholder="Nome do culto">' +
     '<div class="when"><input type="date" id="cData" aria-label="Data" value="' + esc(c.data) + '"><input type="time" id="cHora" aria-label="Hora" value="' + esc(c.hora) + '"></div></div>' +
@@ -481,6 +537,7 @@ function renderRoteiro(){
   h += '</ol>';
   if (!c.itens.length) h += '<div class="empty small">Roteiro vazio. Adicione a primeira música, leitura, imagem ou vídeo.</div>';
   h += '<div><button class="btn ghost" id="addItem" style="min-height:44px">+ Adicionar ao roteiro</button></div>';
+  if (nuvem.user) h += plano.htmlTarefas('culto', c.id);
   h += '<div class="pubBar">' + (nuvem.user ? '<button class="btn" data-escala style="flex:0 0 auto">Escala</button>' : '') + (nuvem.user && ultima(c) ? '<button class="btn" data-aovivo style="flex:0 0 auto">Ao vivo</button>' : (ultima(c) ? '<button class="btn" data-copiar style="flex:0 0 auto">Copiar</button>' : '')) + '<button class="btn primary" data-publicar ' + (mudou(c) ? '' : 'disabled') + '>Publicar v' + proxima + '</button></div>';
   el.innerHTML = h;
 }
@@ -503,8 +560,11 @@ function atualizarLinha(i){
 
 function renderEditor(){
   var el = document.getElementById('editor');
+  var td = ui.tarefaId && nuvem.user && plano.demanda(ui.tarefaId);
+  if (td) { el.innerHTML = plano.htmlTarefa(td); return; }
+  if (ui.eventoId) { el.innerHTML = '<div class="empty small">Toque numa tarefa para ver os detalhes.</div>'; return; }
   var c = culto(), i = item();
-  if (!c || !i) { el.innerHTML = c ? '<div class="empty small">Escolha um item do roteiro para editar.</div>' : ''; return; }
+  if (!c || !i) { el.innerHTML = c ? '<div class="empty small">Escolha um item do roteiro ou uma tarefa para editar.</div>' : ''; return; }
   var idx = c.itens.indexOf(i) + 1;
   var h = '<button class="btn link back" data-voltar="roteiro">‹ Roteiro</button>' +
     '<div class="muted small" style="letter-spacing:.5px">ITEM ' + idx + ' · ' + esc(TIPOS[i.tipo].nome.toUpperCase()) + '</div>' +
@@ -552,11 +612,11 @@ function mostrarLink(i){
 
 /* ---------------- ações ---------------- */
 
-function novoCulto(base){
-  var c = base ? JSON.parse(JSON.stringify(retrato(base))) : {nome: 'Culto de domingo', data: proximoDomingo(), hora: '19:00', itens: []};
+function novoCulto(base, data){
+  var c = base ? JSON.parse(JSON.stringify(retrato(base))) : {nome: data ? 'Culto' : 'Culto de domingo', data: data || proximoDomingo(), hora: '19:00', itens: []};
   c.id = uid(); c.versoes = [];
   if (base) { c.nome = base.nome + ' (cópia)'; c.data = proximoDomingo(); c.itens.forEach(function(i){ i.id = uid(); }); }
-  db.cultos.push(c); ui.cultoId = c.id; ui.itemId = null; ui.view = 'roteiro';
+  db.cultos.push(c); ui.cultoId = c.id; ui.itemId = null; ui.eventoId = null; ui.tarefaId = null; ui.view = 'roteiro';
   salvar(); render();
   var n = document.getElementById('cNome'); if (n) { n.focus(); n.select(); }
 }
@@ -946,7 +1006,7 @@ var equipe = {
     equipe.parar_.push(F.onSnapshot(F.query(F.collection(fs, 'equipe'), F.where('owner', '==', u)), function(snap){
       var l = []; snap.forEach(function(d){ var x = d.data(); x.id = d.id; l.push(x); });
       l.sort(function(a, b){ return (a.nome || '').localeCompare(b.nome || '', 'pt'); });
-      equipe.pessoas = l; equipe.desenhar(); if (typeof plano !== 'undefined') { plano.desenhar(); plano.contar(); }
+      equipe.pessoas = l; equipe.desenhar(); if (typeof plano !== 'undefined') { plano.atualizar(); plano.contar(); }
     }, function(e){ console.warn('equipe', e); equipe.erro = true; equipe.desenhar(); }));
     equipe.parar_.push(F.onSnapshot(F.query(F.collection(fs, 'escalas'), F.where('owner', '==', u)), function(snap){
       var m = {}; snap.forEach(function(d){ m[d.id] = d.data(); });
@@ -1129,83 +1189,259 @@ var equipe = {
 };
 function hojeISO(){ var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 
-/* ---------------- planejamento: calendário, demandas e materiais (15/11) ----------------
- * eventos/<id>: {owner, nome, inicio, fim, marcos[{id,nome,data}], grupos[{id,nome,links[{id,titulo,url,demanda}]}]}
- * demandas/<id>: {owner, titulo, tipo, evento, grupo, pessoa, prazo, obs, estado (a_fazer|ajustar|pronto),
- *   retorno (recado do ajuste), ajusteEm, criadoEm}
- * A pessoa vê as demandas dela no link pessoal (espelho em equipe/<código>.demandas) e responde em
- * equipe/<código>.entregas[<id>] = {estado: fazendo|para_aprovar, url, nota, em}. Só o diretor cria,
- * aprova (vira "pronto" e o link entra no grupo do evento) ou pede ajuste. */
+/* ---------------- planejamento: agenda, tarefas e quadro (18/11) ----------------
+ * eventos/<id>: {owner, nome, inicio, fim, marcos[{id,nome,data}], links[{id,titulo,url}],
+ *   grupos (antigo, só leitura: os links dos grupos aparecem nos materiais)}
+ * demandas/<id> ("tarefas" na tela): {owner, titulo, tipo, evento | culto, pessoa, prazo, obs,
+ *   estado (a_fazer|fazendo|para_aprovar|ajustar|pronto), estadoEm (quando o diretor mudou),
+ *   retorno (recado do ajuste), ajusteEm, criadoEm, aprovadoEm}
+ * A pessoa vê as tarefas dela no link pessoal (espelho em equipe/<código>.demandas) e responde em
+ * equipe/<código>.entregas[<id>] = {estado: fazendo|para_aprovar, url, nota, em}. Vale o que for
+ * mais novo: a mudança do diretor (estadoEm) ou a resposta da pessoa (em).
+ * Materiais do evento = links soltos + links dos grupos antigos + entregas aprovadas das tarefas. */
 var TIPOS_DEMANDA = ['Arte', 'Vídeo', 'Reels', 'Fotos', 'Depoimento', 'Outro'];
-var GRUPOS_PADRAO = ['Artes de divulgação', 'Pré-evento', 'Pós-evento / aftermovie', 'Fotos', 'Vídeos', 'Depoimentos'];
 var ESTADO_DEMANDA = {a_fazer: 'A fazer', fazendo: 'Fazendo', para_aprovar: 'Para aprovar', ajustar: 'Ajustar', pronto: 'Pronto'};
+var COLUNAS = [['a_fazer', 'A fazer'], ['fazendo', 'Fazendo'], ['para_aprovar', 'Para aprovar'], ['pronto', 'Pronto']];
+function tipoPeloTitulo(t){
+  t = semAcento(t);
+  if (/reels|stories em video/.test(t)) return 'Reels';
+  if (/video|aftermovie|teaser|clipe/.test(t)) return 'Vídeo';
+  if (/foto/.test(t)) return 'Fotos';
+  if (/depoimento|testemunho/.test(t)) return 'Depoimento';
+  if (/arte|post|feed|stories|flyer|banner|capa|thumb|card/.test(t)) return 'Arte';
+  return 'Outro';
+}
 var plano = {
-  eventos: [], demandas: [], parar_: [], aberto: null, aba: 'calendario', mes: null, eventoId: null, editando: null,
+  eventos: [], demandas: [], parar_: [], aberto: null, aba: 'quadro', mes: null,
   ouvir: function(){
     plano.parar();
     var F = nuvem.m, fs = nuvem.fs, u = nuvem.user.uid;
     plano.parar_.push(F.onSnapshot(F.query(F.collection(fs, 'eventos'), F.where('owner', '==', u)), function(snap){
       var l = []; snap.forEach(function(d){ var x = d.data(); x.id = d.id; l.push(x); });
       l.sort(function(a, b){ return (a.inicio || '').localeCompare(b.inicio || ''); });
-      plano.eventos = l; plano.desenhar();
-    }, function(e){ console.warn('eventos', e); plano.erro = true; plano.desenhar(); }));
+      plano.eventos = l; plano.atualizar();
+    }, function(e){ console.warn('eventos', e); plano.erro = true; plano.atualizar(); }));
     plano.parar_.push(F.onSnapshot(F.query(F.collection(fs, 'demandas'), F.where('owner', '==', u)), function(snap){
       var l = []; snap.forEach(function(d){ var x = d.data(); x.id = d.id; l.push(x); });
-      plano.demandas = l; plano.desenhar(); plano.contar();
-    }, function(e){ console.warn('demandas', e); plano.erro = true; plano.desenhar(); }));
+      plano.demandas = l; plano.atualizar(); plano.contar();
+    }, function(e){ console.warn('demandas', e); plano.erro = true; plano.atualizar(); }));
   },
   parar: function(){ plano.parar_.forEach(function(f){ try { f(); } catch (e) {} }); plano.parar_ = []; plano.eventos = []; plano.demandas = []; plano.fechar(); },
   evento: function(id){ return plano.eventos.find(function(e){ return e.id === id; }) || null; },
   demanda: function(id){ return plano.demandas.find(function(d){ return d.id === id; }) || null; },
-  /* andamento de verdade: o do diretor (pronto/ajustar) ou o que a pessoa mandou depois */
+  cultoDe: function(id){ return db.cultos.find(function(c){ return c.id === id; }) || null; },
+  /* andamento de verdade: o mais novo entre a mudança do diretor e a resposta da pessoa */
   estado: function(d){
     if (d.estado === 'pronto') return 'pronto';
     var p = d.pessoa && equipe.pessoa(d.pessoa), en = p && (p.entregas || {})[d.id];
-    if (en && en.em >= (d.ajusteEm || '')) return en.estado;
-    return d.estado === 'ajustar' ? 'ajustar' : 'a_fazer';
+    if (en && en.em >= (d.estadoEm || d.ajusteEm || '')) return en.estado;
+    return ESTADO_DEMANDA[d.estado] ? d.estado : 'a_fazer';
   },
   entrega: function(d){ var p = d.pessoa && equipe.pessoa(d.pessoa); return p && (p.entregas || {})[d.id] || null; },
+  /* de onde a tarefa é: nome curto para mostrar */
+  origem: function(d){
+    var ev = d.evento && plano.evento(d.evento); if (ev) return ev.nome;
+    var c = d.culto && plano.cultoDe(d.culto); if (c) return (c.nome || 'Culto') + (c.data ? ' ' + c.data.slice(8, 10) + '/' + c.data.slice(5, 7) : '');
+    return '';
+  },
+  tarefasDe: function(tipo, id){ return plano.demandas.filter(function(d){ return d[tipo] === id; }); },
+  pendentes: function(l){ return l.filter(function(d){ return plano.estado(d) !== 'pronto'; }).length; },
   contar: function(){
     var n = plano.demandas.filter(function(d){ return plano.estado(d) === 'para_aprovar'; }).length;
-    var b = document.getElementById('btnPlano'); if (b) b.innerHTML = 'Planejamento' + (n ? '<span class="contador">' + n + '</span>' : '');
+    var b = document.getElementById('btnPlano'); if (b) b.innerHTML = 'Demandas' + (n ? '<span class="contador">' + n + '</span>' : '');
   },
   salvarEvento: function(ev){
     var F = nuvem.m, dados = Object.assign({}, ev); delete dados.id; dados.owner = nuvem.user.uid;
     F.setDoc(F.doc(nuvem.fs, 'eventos', ev.id), dados).catch(function(e){ console.warn(e); toast('Não deu para salvar o evento'); });
   },
-  /* demanda + espelho na pessoa (o link pessoal mostra) */
+  /* tarefa + espelho na pessoa (o link pessoal mostra). Atualiza a lista local na hora. */
   salvarDemanda: function(d, antes){
     var F = nuvem.m, dados = Object.assign({}, d); delete dados.id; dados.owner = nuvem.user.uid; dados.atualizadoEm = new Date().toISOString();
-    F.setDoc(F.doc(nuvem.fs, 'demandas', d.id), dados).catch(function(e){ console.warn(e); toast('Não deu para salvar a demanda'); });
-    var ev = plano.evento(d.evento);
+    var k = plano.demandas.findIndex(function(x){ return x.id === d.id; }); if (k >= 0) plano.demandas[k] = d; else plano.demandas.push(d);
+    F.setDoc(F.doc(nuvem.fs, 'demandas', d.id), dados).catch(function(e){ console.warn(e); toast('Não deu para salvar a tarefa'); });
     if (antes && antes.pessoa && antes.pessoa !== d.pessoa && equipe.pessoa(antes.pessoa)) { var x = {}; x['demandas.' + d.id] = F.deleteField(); equipe.mudar(antes.pessoa, x); }
     if (d.pessoa && equipe.pessoa(d.pessoa)) {
-      var m = {}; m['demandas.' + d.id] = {titulo: d.titulo, tipo: d.tipo, evento: ev ? ev.nome : '', prazo: d.prazo || '', obs: d.obs || '', estado: d.estado, retorno: d.retorno || '', ajusteEm: d.ajusteEm || '', atribuidoEm: (antes && antes.pessoa === d.pessoa && antes.criadoEm) || d.criadoEm};
+      var m = {}; m['demandas.' + d.id] = {titulo: d.titulo, tipo: d.tipo, evento: plano.origem(d), prazo: d.prazo || '', obs: d.obs || '', estado: d.estado, retorno: d.retorno || '', ajusteEm: d.estadoEm || d.ajusteEm || '', atribuidoEm: (antes && antes.pessoa === d.pessoa && antes.criadoEm) || d.criadoEm};
       equipe.mudar(d.pessoa, m);
     }
+    plano.atualizar(); plano.contar();
   },
   apagarDemanda: function(d){
+    plano.demandas = plano.demandas.filter(function(x){ return x.id !== d.id; });
     nuvem.m.deleteDoc(nuvem.m.doc(nuvem.fs, 'demandas', d.id)).catch(function(e){ console.warn(e); });
     if (d.pessoa && equipe.pessoa(d.pessoa)) { var x = {}; x['demandas.' + d.id] = nuvem.m.deleteField(); equipe.mudar(d.pessoa, x); }
+    if (ui.tarefaId === d.id) ui.tarefaId = null;
+    plano.atualizar(); plano.contar();
+  },
+  novaTarefa: function(campos){
+    var d = Object.assign({id: uid(), titulo: '', tipo: 'Outro', evento: '', culto: '', pessoa: '', prazo: '', obs: '', estado: 'a_fazer', criadoEm: new Date().toISOString()}, campos);
+    if (!campos.tipo) d.tipo = tipoPeloTitulo(d.titulo);
+    plano.salvarDemanda(d, null);
+    var p = d.pessoa && equipe.pessoa(d.pessoa);
+    if (p && p.whatsapp) dialogo('Avisar ' + esc((p.nome || '').split(' ')[0]) + ' no WhatsApp?', 'Manda a tarefa "' + esc(d.titulo) + '" com o link pessoal dela.', 'Avisar', function(){ plano.avisar(d); });
+    return d;
+  },
+  avisar: function(d){
+    var p = equipe.pessoa(d.pessoa); if (!p) return; var org = plano.origem(d);
+    var texto = 'Olá, ' + (p.nome || '').split(' ')[0] + '! ' + (plano.estado(d) === 'ajustar' ? 'Ajuste na tarefa' : 'Nova tarefa para você') + ': *' + d.titulo + '*' + (org ? ' (' + org + ')' : '') + (d.prazo ? ', prazo ' + quando(d.prazo) : '') + '.\n' +
+      (plano.estado(d) === 'ajustar' && d.retorno ? 'O que mudar: ' + d.retorno + '\n' : '') + 'Veja e entregue por aqui: ' + linkPessoal(p.id);
+    window.open('https://wa.me/' + whats(p.whatsapp) + '?text=' + encodeURIComponent(texto), '_blank', 'noopener');
+  },
+  aprovar: function(d){ var agora = new Date().toISOString(); plano.salvarDemanda(Object.assign({}, d, {estado: 'pronto', estadoEm: agora, aprovadoEm: agora}), d); toast('Aprovada.' + (plano.entrega(d) && plano.entrega(d).url ? ' O link entrou nos materiais.' : '')); },
+  pedirAjuste: function(d){
+    dialogo('Pedir ajuste', 'O que precisa mudar?<input id="ajTexto" style="width:100%;margin-top:8px;background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:8px;color:var(--text)">', 'Pedir ajuste', function(){});
+    var inp = document.getElementById('ajTexto'), ok = inp.closest('.dialog').querySelector('[data-ok]'); inp.focus();
+    ok.onclick = function(){
+      var agora = new Date().toISOString(), nv = Object.assign({}, d, {estado: 'ajustar', retorno: inp.value.trim(), ajusteEm: agora, estadoEm: agora});
+      inp.closest('.dialogBg').remove(); plano.salvarDemanda(nv, d);
+      var p = equipe.pessoa(d.pessoa);
+      if (p && p.whatsapp) dialogo('Avisar ' + esc((p.nome || '').split(' ')[0]) + ' do ajuste?', 'Manda o que precisa mudar pelo WhatsApp.', 'Avisar', function(){ plano.avisar(nv); });
+    };
+  },
+  /* arrastar no quadro / mudar o andamento à mão */
+  mover: function(d, col){
+    var atual = plano.estado(d); if (col === atual || (col === 'a_fazer' && atual === 'ajustar')) return;
+    if (col === 'pronto') return plano.aprovar(d);
+    plano.salvarDemanda(Object.assign({}, d, {estado: col, estadoEm: new Date().toISOString(), aprovadoEm: col === 'pronto' ? d.aprovadoEm : ''}), d);
   },
 
-  /* ---- painel ---- */
-  abrir: function(aba, extra){
-    plano.aba = aba || plano.aba; if (extra) Object.assign(plano, extra);
+  /* ---- materiais do evento (sem grupos) ---- */
+  materiais: function(ev){
+    var l = [], vistos = {};
+    var poe = function(m){ if (!m.url || vistos[m.url]) return; vistos[m.url] = 1; l.push(m); };
+    (ev.links || []).forEach(function(x, i){ poe({titulo: x.titulo, url: x.url, tirar: 'l' + i}); });
+    (ev.grupos || []).forEach(function(g, gi){ (g.links || []).forEach(function(x, li){ poe({titulo: x.titulo || g.nome, url: x.url, tirar: 'g' + gi + '_' + li}); }); });
+    plano.tarefasDe('evento', ev.id).forEach(function(d){ var en = plano.entrega(d); if (plano.estado(d) === 'pronto' && en && en.url) poe({titulo: d.titulo, url: en.url, tarefa: d.id}); });
+    return l;
+  },
+
+  /* ---- atualização da tela quando algo muda (sem tirar o foco de quem está digitando) ---- */
+  atualizar: function(forcar){
+    if (!nuvem.user) return;
+    var foco = document.activeElement, fid = foco && foco.id;
+    var dig = !forcar && foco && /^(INPUT|SELECT|TEXTAREA)$/.test(foco.tagName) ? foco : null;
+    renderCultos();
+    if (ui.eventoId) { if (!plano.evento(ui.eventoId) && plano.eventos.length) { ui.eventoId = null; render(); return; } if (!(dig && dig.closest('#roteiro'))) renderEvento(); }
+    else { var box = document.getElementById('tarefasBox'), c = culto(); if (box && c && !(dig && box.contains(dig))) box.outerHTML = plano.htmlTarefas('culto', c.id); }
+    if (ui.tarefaId && !(dig && dig.closest('#editor'))) renderEditor();
+    if (plano.aberto && !(dig && dig.closest('#plano'))) plano.desenhar();
+    if (fid && document.getElementById(fid) && document.activeElement !== document.getElementById(fid)) document.getElementById(fid).focus();
+  },
+
+  /* ---- lista de tarefas (no evento e no culto) ---- */
+  htmlTarefas: function(tipo, id){
+    var l = plano.tarefasDe(tipo, id), hoje = hojeISO(), ordem = {para_aprovar: 0, ajustar: 1, fazendo: 2, a_fazer: 3, pronto: 4};
+    l.sort(function(a, b){ return ordem[plano.estado(a)] - ordem[plano.estado(b)] || (a.prazo || '9').localeCompare(b.prazo || '9'); });
+    var h = '<div class="tarefas" id="tarefasBox"><div class="row" style="justify-content:space-between"><div class="lblSec">Tarefas' + (l.length ? ' <span class="muted">' + plano.pendentes(l) + ' em aberto</span>' : '') + '</div></div>';
+    l.forEach(function(d){
+      var est = plano.estado(d), p = equipe.pessoa(d.pessoa), atras = est !== 'pronto' && d.prazo && d.prazo < hoje;
+      h += '<div class="tarefa' + (est === 'pronto' ? ' feita' : '') + (d.id === ui.tarefaId ? ' on' : '') + '" data-tarefa="' + d.id + '">' +
+        '<span class="estado ' + est + '">' + ESTADO_DEMANDA[est] + '</span>' +
+        '<div style="min-width:0"><div class="t">' + esc(d.titulo) + '</div><div class="s">' + esc(p ? p.nome : 'Sem responsável') + (d.prazo ? ' · <span class="' + (atras ? 'bad' : '') + '">' + esc(quando(d.prazo)) + (atras ? ' · atrasada' : '') + '</span>' : '') + '</div></div>' +
+        (est === 'para_aprovar' ? '<div class="fchips"><button data-pl="aprovar" data-id="' + d.id + '">Aprovar</button><button data-pl="ajuste" data-id="' + d.id + '">Ajuste</button></div>' : '<span></span>') + '</div>';
+    });
+    h += '<form class="addTarefa" data-plform="tarefa" data-tipo="' + tipo + '" data-id="' + id + '">' +
+      '<input name="tNovo" placeholder="+ Nova tarefa (ex.: Arte de divulgação)" autocomplete="off" required>' +
+      '<select name="tPessoa" aria-label="Responsável"><option value="">Responsável</option>' + equipe.pessoas.map(function(p){ return '<option value="' + p.id + '">' + esc(p.nome) + '</option>'; }).join('') + '</select>' +
+      '<input name="tPrazo" type="date" aria-label="Prazo"><button class="btn">Adicionar</button></form></div>';
+    return h;
+  },
+
+  /* ---- detalhe da tarefa (coluna da direita, ou ao lado do quadro) ---- */
+  htmlTarefa: function(d){
+    var est = plano.estado(d), en = plano.entrega(d), p = equipe.pessoa(d.pessoa), hoje = hojeISO();
+    var ev = plano.evento(d.evento), marcos = ev ? (ev.marcos || []).filter(function(m){ return m.data; }) : [];
+    var origens = '<option value="">— solta —</option>' +
+      db.cultos.filter(function(c){ return !c.data || c.data >= hoje || c.id === d.culto; }).sort(function(a, b){ return (a.data || '9').localeCompare(b.data || '9'); })
+        .map(function(c){ return '<option value="c:' + c.id + '"' + (c.id === d.culto ? ' selected' : '') + '>Culto · ' + esc(c.nome || 'Culto') + (c.data ? ' ' + esc(c.data.slice(8, 10) + '/' + c.data.slice(5, 7)) : '') + '</option>'; }).join('') +
+      plano.eventos.filter(function(e){ return !e.fim || e.fim >= hoje || e.id === d.evento; })
+        .map(function(e){ return '<option value="e:' + e.id + '"' + (e.id === d.evento ? ' selected' : '') + '>Evento · ' + esc(e.nome) + '</option>'; }).join('');
+    var h = '<button class="btn link back" data-voltar="roteiro">‹ Voltar</button>' +
+      '<div class="row" style="justify-content:space-between"><div class="muted small" style="letter-spacing:.5px">TAREFA</div><span class="estado ' + est + '">' + ESTADO_DEMANDA[est] + '</span></div>' +
+      '<div class="field"><label for="tdTitulo">O que precisa ser feito</label><input id="tdTitulo" data-tcampo="titulo" value="' + esc(d.titulo) + '"></div>' +
+      '<div class="grade2"><div class="field"><label for="tdPessoa">Responsável</label><select id="tdPessoa" data-tcampo="pessoa"><option value="">— ninguém —</option>' + equipe.pessoas.map(function(x){ return '<option value="' + x.id + '"' + (x.id === d.pessoa ? ' selected' : '') + '>' + esc(x.nome) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><label for="tdPrazo">Prazo</label><input id="tdPrazo" type="date" data-tcampo="prazo" value="' + esc(d.prazo || '') + '" style="color-scheme:dark"></div></div>' +
+      (marcos.length ? '<div class="fchips">' + marcos.map(function(mk){ return '<button data-pl="prazoAntes" data-data="' + mk.data + '">3 dias antes de "' + esc(mk.nome) + '"</button>'; }).join('') + '</div>' : '') +
+      '<div class="grade2"><div class="field"><label for="tdTipo">Tipo</label><select id="tdTipo" data-tcampo="tipo">' + TIPOS_DEMANDA.map(function(t){ return '<option' + (t === d.tipo ? ' selected' : '') + '>' + t + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><label for="tdDe">De</label><select id="tdDe" data-tcampo="de">' + origens + '</select></div></div>' +
+      '<div class="field"><label for="tdObs">Detalhes</label><input id="tdObs" data-tcampo="obs" value="' + esc(d.obs || '') + '" placeholder="Ex.: usar a identidade visual do acampamento"></div>';
+    if (en && en.url && est !== 'a_fazer') h += '<div class="entregaBox"><div class="muted small">Entrega' + (p ? ' de ' + esc(p.nome.split(' ')[0]) : '') + '</div><a href="' + esc(en.url) + '" target="_blank" rel="noopener">Abrir a entrega ↗</a>' + (en.nota ? '<div class="small">' + esc(en.nota) + '</div>' : '') + '</div>';
+    if (est === 'ajustar' && d.retorno) h += '<div class="msg warn">Ajuste pedido: ' + esc(d.retorno) + '</div>';
+    h += '<div class="fchips">' +
+      (est === 'para_aprovar' ? '<button class="sim" data-pl="aprovar" data-id="' + d.id + '">Aprovar</button><button data-pl="ajuste" data-id="' + d.id + '">Pedir ajuste</button>' : '') +
+      (est === 'pronto' && en && en.url ? '<button class="usar" data-pl="usarDemanda" data-id="' + d.id + '">▶ Usar no culto</button>' : '') +
+      (p && p.whatsapp && est !== 'pronto' ? '<button data-pl="avisarDemanda" data-id="' + d.id + '">Avisar no WhatsApp</button>' : '') + '</div>' +
+      '<div style="margin-top:auto"><button class="btn link small" data-pl="apagarDemanda" data-id="' + d.id + '">Apagar tarefa</button></div>';
+    return h;
+  },
+  mudarTarefa: function(t){
+    var d = plano.demanda(ui.tarefaId), c = t.dataset.tcampo; if (!d) return;
+    var nv = Object.assign({}, d);
+    if (c === 'de') { var v = t.value; nv.evento = v.slice(0, 2) === 'e:' ? v.slice(2) : ''; nv.culto = v.slice(0, 2) === 'c:' ? v.slice(2) : ''; }
+    else nv[c] = c === 'titulo' || c === 'obs' ? t.value.trim() : t.value;
+    if (c === 'titulo' && !nv.titulo) { toast('Escreva o que precisa ser feito.'); t.value = d.titulo; return; }
+    plano.salvarDemanda(nv, d);
+    if (c === 'de') renderEditor();
+  },
+  abrirTarefa: function(id){
+    var d = plano.demanda(id); if (!d) return;
+    plano.fechar();
+    if (d.evento && plano.evento(d.evento)) { ui.eventoId = d.evento; ui.cultoId = null; }
+    else if (d.culto && plano.cultoDe(d.culto)) { ui.cultoId = d.culto; ui.eventoId = null; }
+    ui.itemId = null; ui.tarefaId = id; ui.view = 'item'; render();
+  },
+
+  /* ---- painel por cima: quadro de demandas e calendário ---- */
+  abrir: function(aba){
+    plano.aba = aba || plano.aba;
     if (!plano.mes) plano.mes = hojeISO().slice(0, 7);
     plano.aberto = true; var el = document.getElementById('plano'); el.style.display = 'flex'; plano.desenhar();
   },
-  fechar: function(){ plano.aberto = null; plano.editando = null; var el = document.getElementById('plano'); if (el) { el.style.display = 'none'; el.innerHTML = ''; } },
+  fechar: function(){ plano.aberto = null; var el = document.getElementById('plano'); if (el) { el.style.display = 'none'; el.innerHTML = ''; } },
   desenhar: function(){
     var el = document.getElementById('plano'); if (!el || !plano.aberto) return;
     var foco = document.activeElement && document.activeElement.id;
-    var h = '<div class="bar"><button class="btn link" data-pl="fechar">‹ Voltar</button><span class="t">Planejamento</span><div class="abas">' +
-      [['calendario', 'Calendário'], ['demandas', 'Demandas'], ['eventos', 'Eventos e materiais']].map(function(a){
-        return '<button class="' + (plano.aba === a[0] ? 'on' : '') + '" data-pl="aba" data-a="' + a[0] + '">' + a[1] + '</button>'; }).join('') + '</div></div><div class="wrap">';
-    if (plano.erro) h += '<div class="card full"><div class="msg bad">Sem permissão: cole as regras novas (firestore.rules) no console do Firebase.</div></div>';
-    h += plano.aba === 'calendario' ? plano.htmlCalendario() : plano.aba === 'demandas' ? plano.htmlDemandas() : plano.htmlEventos();
-    el.innerHTML = h + '</div>';
+    var h = '<div class="bar"><button class="btn link" data-pl="fechar">‹ Voltar</button><span class="t">' + (plano.aba === 'quadro' ? 'Demandas' : 'Calendário') + '</span><div class="abas">' +
+      [['quadro', 'Quadro'], ['calendario', 'Calendário']].map(function(a){
+        return '<button class="' + (plano.aba === a[0] ? 'on' : '') + '" data-pl="aba" data-a="' + a[0] + '">' + a[1] + '</button>'; }).join('') + '</div></div>';
+    if (plano.erro) h += '<div class="msg bad" style="padding:12px 16px">Sem permissão: cole as regras novas (firestore.rules) no console do Firebase.</div>';
+    h += plano.aba === 'quadro' ? plano.htmlQuadro() : '<div class="wrap">' + plano.htmlCalendario() + '</div>';
+    el.innerHTML = h;
     if (foco && document.getElementById(foco)) document.getElementById(foco).focus();
+  },
+  htmlQuadro: function(){
+    var hoje = hojeISO(), porCol = {a_fazer: [], fazendo: [], para_aprovar: [], pronto: []};
+    plano.demandas.forEach(function(d){ var e = plano.estado(d); porCol[e === 'ajustar' ? 'a_fazer' : e].push(d); });
+    var limite = new Date(Date.now() - 14 * 864e5).toISOString();
+    var nPronto = porCol.pronto.length;
+    porCol.pronto = porCol.pronto.filter(function(d){ return (d.aprovadoEm || d.estadoEm || d.atualizadoEm || '') >= limite; });
+    Object.keys(porCol).forEach(function(k){ porCol[k].sort(function(a, b){ return (a.prazo || '9').localeCompare(b.prazo || '9'); }); });
+    var aprovar = porCol.para_aprovar.length;
+    var hoje2 = hojeISO();
+    var origens = '<option value="">De… (opcional)</option>' +
+      db.cultos.filter(function(c){ return c.data && c.data >= hoje2; }).sort(function(a, b){ return a.data.localeCompare(b.data); }).slice(0, 12)
+        .map(function(c){ return '<option value="c:' + c.id + '">Culto · ' + esc(c.nome || 'Culto') + ' ' + esc(c.data.slice(8, 10) + '/' + c.data.slice(5, 7)) + '</option>'; }).join('') +
+      plano.eventos.filter(function(e){ return !e.fim || e.fim >= hoje2; }).map(function(e){ return '<option value="e:' + e.id + '">Evento · ' + esc(e.nome) + '</option>'; }).join('');
+    var h = '<div class="quadroTopo">' + (aprovar ? '<div class="esperando">Esperando você: <b>' + aprovar + ' para aprovar</b></div>' : '<div class="muted small">Nada esperando a sua aprovação.</div>') +
+      '<form class="addTarefa" data-plform="tarefa" data-tipo="quadro"><input name="tNovo" placeholder="+ Nova tarefa" autocomplete="off" required><select name="tDe" aria-label="De">' + origens + '</select>' +
+      '<select name="tPessoa" aria-label="Responsável"><option value="">Responsável</option>' + equipe.pessoas.map(function(p){ return '<option value="' + p.id + '">' + esc(p.nome) + '</option>'; }).join('') + '</select>' +
+      '<input name="tPrazo" type="date" aria-label="Prazo"><button class="btn primary">Adicionar</button></form></div><div class="quadro">';
+    COLUNAS.forEach(function(col){
+      var l = porCol[col[0]];
+      h += '<div class="coluna" data-coluna="' + col[0] + '"><div class="colTopo"><span>' + col[1] + '</span><span class="muted">' + l.length + '</span></div>';
+      l.forEach(function(d){
+        var est = plano.estado(d), p = equipe.pessoa(d.pessoa), en = plano.entrega(d), atras = est !== 'pronto' && d.prazo && d.prazo < hoje, org = plano.origem(d);
+        h += '<div class="cartao" draggable="true" data-cartao="' + d.id + '">' +
+          (est === 'ajustar' ? '<span class="estado ajustar" style="align-self:flex-start">Ajustar</span>' : '') +
+          '<div class="t">' + esc(d.titulo) + '</div>' + (org ? '<div class="org">' + esc(org) + '</div>' : '') +
+          '<div class="pe"><span>' + esc(p ? p.nome.split(' ')[0] : 'Sem responsável') + '</span>' + (d.prazo ? '<span class="' + (atras ? 'bad' : 'muted') + '">' + esc(quando(d.prazo)) + '</span>' : '') + '</div>' +
+          (est === 'para_aprovar' ? '<div class="fchips">' + (en && en.url ? '<a class="verEnt" href="' + esc(en.url) + '" target="_blank" rel="noopener">Ver ↗</a>' : '') + '<button class="sim" data-pl="aprovar" data-id="' + d.id + '">Aprovar</button><button data-pl="ajuste" data-id="' + d.id + '">Ajuste</button></div>' : '') +
+          (est === 'pronto' && en && en.url ? '<div class="fchips"><button class="usar" data-pl="usarDemanda" data-id="' + d.id + '">▶ Usar no culto</button></div>' : '') + '</div>';
+      });
+      if (col[0] === 'pronto' && nPronto > l.length) h += '<div class="muted small" style="padding:4px 6px">As aprovadas há mais de 2 semanas ficam guardadas no evento ou culto.</div>';
+      h += '</div>';
+    });
+    return h + '</div><div class="muted small" style="padding:0 16px 16px;max-width:1300px;width:100%;margin:0 auto">Arraste os cartões entre as colunas. Toque num cartão para abrir.</div>';
   },
 
   /* ---- calendário ---- */
@@ -1223,95 +1459,36 @@ var plano = {
     });
     plano.demandas.forEach(function(d){
       if (!d.prazo) return; var est = plano.estado(d);
-      poe(d.prazo, '<button class="tag prazo' + (est !== 'pronto' && d.prazo < hoje ? ' atrasada' : '') + '" data-pl="editarDemanda" data-id="' + d.id + '">' + (est === 'pronto' ? '✓ ' : 'Prazo: ') + esc(d.titulo) + '</button>');
+      poe(d.prazo, '<button class="tag prazo' + (est !== 'pronto' && d.prazo < hoje ? ' atrasada' : '') + '" data-pl="tarefa" data-id="' + d.id + '">' + (est === 'pronto' ? '✓ ' : '') + esc(d.titulo) + '</button>');
     });
     var h = '<div class="card full"><div class="row" style="justify-content:space-between;align-items:center"><button class="btn small" data-pl="mes" data-d="-1">‹</button>' +
       '<div style="font-weight:700;font-size:18px">' + MESES[m].charAt(0).toUpperCase() + MESES[m].slice(1) + ' ' + ano + '</div><button class="btn small" data-pl="mes" data-d="1">›</button></div>' +
       '<div class="mes">' + DIAS.map(function(d){ return '<div class="dn">' + d + '</div>'; }).join('');
     for (var i = 0; i < 42; i++) {
       var dia = new Date(ini.getTime() + i * 864e5 + 12 * 3600e3), di = iso(dia);
-      h += '<div class="dia' + (dia.getMonth() !== m ? ' fora' : '') + (di === hoje ? ' hoje' : '') + '"><span class="n">' + dia.getDate() + '</span>' + (porDia[di] || []).join('') + '</div>';
+      h += '<div class="dia' + (dia.getMonth() !== m ? ' fora' : '') + (di === hoje ? ' hoje' : '') + '" data-dia="' + di + '"><span class="n">' + dia.getDate() + '</span>' + (porDia[di] || []).join('') + '</div>';
     }
-    h += '</div><div class="muted small" style="margin-top:8px">Azul: cultos · roxo: eventos e datas importantes · amarelo: prazos (vermelho = atrasado).</div></div>';
+    h += '</div><div class="muted small" style="margin-top:8px">Azul: cultos · roxo: eventos e datas importantes · amarelo: prazos (vermelho = atrasado). Toque num dia vazio para criar algo nele.</div></div>';
     return h;
   },
-
-  /* ---- demandas ---- */
-  htmlDemandas: function(){
-    var h = '';
-    if (plano.editando) h += plano.htmlFormDemanda();
-    else h += '<div class="card full"><div class="row" style="justify-content:space-between"><div class="lbl">Demandas</div><button class="btn primary small" data-pl="novaDemanda">+ Nova demanda</button></div>';
-    if (plano.editando) h += '<div class="card full"><div class="lbl">Demandas</div>';
-    var ordem = {para_aprovar: 0, ajustar: 1, fazendo: 2, a_fazer: 3, pronto: 4}, hoje = hojeISO();
-    var l = plano.demandas.slice().sort(function(a, b){ return ordem[plano.estado(a)] - ordem[plano.estado(b)] || (a.prazo || '9').localeCompare(b.prazo || '9'); });
-    if (!l.length) h += '<div class="muted small">Nenhuma demanda ainda. Crie a primeira (ex.: "Arte de divulgação do acampamento").</div>';
-    l.forEach(function(d){
-      var est = plano.estado(d), p = equipe.pessoa(d.pessoa), ev = plano.evento(d.evento), en = plano.entrega(d), atras = est !== 'pronto' && d.prazo && d.prazo < hoje;
-      h += '<div class="dem"><div><div class="t">' + esc(d.titulo) + '</div><div class="muted small">' + esc(d.tipo) + (ev ? ' · ' + esc(ev.nome) : '') + (d.obs ? ' · ' + esc(d.obs) : '') + '</div>' +
-        (en && en.url && est !== 'a_fazer' ? '<div class="lnk"><a href="' + esc(en.url) + '" target="_blank" rel="noopener">Ver entrega ↗</a>' + (en.nota ? '<span class="muted small">' + esc(en.nota) + '</span>' : '') + '</div>' : '') +
-        (est === 'ajustar' && d.retorno ? '<div class="muted small">Ajuste pedido: ' + esc(d.retorno) + '</div>' : '') + '</div>' +
-        '<div class="small">' + esc(p ? p.nome : 'Sem responsável') + '<div class="' + (atras ? 'msg bad' : 'muted') + ' small">' + (d.prazo ? 'Prazo ' + esc(quando(d.prazo)) + (atras ? ' · atrasada' : '') : 'Sem prazo') + '</div></div>' +
-        '<span class="estado ' + est + '">' + ESTADO_DEMANDA[est] + '</span><div class="fchips">' +
-        (est === 'para_aprovar' ? '<button data-pl="aprovar" data-id="' + d.id + '">Aprovar</button><button data-pl="ajuste" data-id="' + d.id + '">Pedir ajuste</button>' : '') +
-        (est === 'pronto' && en && en.url ? '<button class="usar" data-pl="usarDemanda" data-id="' + d.id + '">▶ Usar no culto</button>' : '') +
-        (p && p.whatsapp && est !== 'pronto' ? '<button data-pl="avisarDemanda" data-id="' + d.id + '">Avisar</button>' : '') +
-        '<button data-pl="editarDemanda" data-id="' + d.id + '">Editar</button></div></div>';
-    });
-    return h + '</div>';
+  menuDia: function(data, x, y){
+    menu(x, y, [
+      {t: 'Novo culto em ' + quando(data), f: function(){ plano.fechar(); novoCulto(null, data); }},
+      {t: 'Novo evento em ' + quando(data), f: function(){ plano.fechar(); plano.novoEvento(data); }},
+      {t: 'Nova tarefa com prazo ' + quando(data), f: function(){
+        dialogo('Nova tarefa', 'Prazo ' + esc(quando(data)) + '<input id="ntTexto" placeholder="O que precisa ser feito" style="width:100%;margin-top:8px;background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:8px;color:var(--text)">', 'Criar', function(){});
+        var inp = document.getElementById('ntTexto'), ok = inp.closest('.dialog').querySelector('[data-ok]'); inp.focus();
+        ok.onclick = function(){ var tt = inp.value.trim(); if (!tt) return; inp.closest('.dialogBg').remove(); plano.novaTarefa({titulo: tt, prazo: data}); };
+      }}
+    ]);
   },
-  htmlFormDemanda: function(){
-    var d = plano.editando, ev = plano.evento(d.evento);
-    var marcos = ev ? (ev.marcos || []).filter(function(m){ return m.data; }) : [];
-    return '<div class="card full planoForm"><div class="lbl">' + (plano.demanda(d.id) ? 'Editar demanda' : 'Nova demanda') + '</div>' +
-      '<div class="grade2"><div><label for="dTitulo">O que precisa ser feito</label><input id="dTitulo" data-dcampo="titulo" value="' + esc(d.titulo || '') + '" placeholder="Ex.: Arte de divulgação (feed, stories e telão)"></div>' +
-      '<div><label for="dTipo">Tipo</label><select id="dTipo" data-dcampo="tipo">' + TIPOS_DEMANDA.map(function(t){ return '<option' + (t === d.tipo ? ' selected' : '') + '>' + t + '</option>'; }).join('') + '</select></div>' +
-      '<div><label for="dEvento">Evento</label><select id="dEvento" data-dcampo="evento"><option value="">— nenhum —</option>' + plano.eventos.map(function(e){ return '<option value="' + e.id + '"' + (e.id === d.evento ? ' selected' : '') + '>' + esc(e.nome) + '</option>'; }).join('') + '</select></div>' +
-      '<div><label for="dGrupo">Quando aprovar, o link vai para</label><select id="dGrupo" data-dcampo="grupo"><option value="">— só na demanda —</option>' + (ev ? (ev.grupos || []).map(function(g){ return '<option value="' + g.id + '"' + (g.id === d.grupo ? ' selected' : '') + '>' + esc(g.nome) + '</option>'; }).join('') : '') + '</select></div>' +
-      '<div><label for="dPessoa">Responsável</label><select id="dPessoa" data-dcampo="pessoa"><option value="">— escolher —</option>' + equipe.pessoas.map(function(p){ return '<option value="' + p.id + '"' + (p.id === d.pessoa ? ' selected' : '') + '>' + esc(p.nome) + '</option>'; }).join('') + '</select></div>' +
-      '<div><label for="dPrazo">Prazo</label><input id="dPrazo" type="date" data-dcampo="prazo" value="' + esc(d.prazo || '') + '">' +
-        (marcos.length ? '<div class="fchips" style="margin-top:6px">' + marcos.map(function(mk){ return '<button data-pl="prazoAntes" data-data="' + mk.data + '">3 dias antes de "' + esc(mk.nome) + '"</button>'; }).join('') + '</div>' : '') + '</div></div>' +
-      '<div style="margin-top:10px"><label for="dObs">Detalhes (opcional)</label><input id="dObs" data-dcampo="obs" value="' + esc(d.obs || '') + '" placeholder="Ex.: usar a identidade visual do acampamento"></div>' +
-      '<div class="row" style="justify-content:space-between;margin-top:12px">' + (plano.demanda(d.id) ? '<button class="btn link small" data-pl="apagarDemanda">Apagar demanda</button>' : '<span></span>') +
-      '<div class="row" style="gap:8px"><button class="btn" data-pl="cancelarDemanda">Cancelar</button><button class="btn primary" data-pl="guardarDemanda">Salvar</button></div></div></div>';
+  novoEvento: function(data){
+    var novo = {id: uid(), nome: 'Novo evento', inicio: data || '', fim: data || '', marcos: [], links: [], criadoEm: new Date().toISOString()};
+    plano.eventos.push(novo); plano.salvarEvento(novo);
+    ui.eventoId = novo.id; ui.cultoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; render();
+    var n = document.getElementById('evNome'); if (n) { n.focus(); n.select(); }
   },
 
-  /* ---- eventos e materiais ---- */
-  htmlEventos: function(){
-    var ev = plano.evento(plano.eventoId);
-    if (ev) return plano.htmlEvento(ev);
-    var h = '<div class="card full"><div class="lbl">Eventos</div><form class="send" data-plform="evento"><input id="evNome" placeholder="Nome do evento (ex.: Acampamento 2027)" autocomplete="off" required><button class="btn primary">Criar evento</button></form>';
-    if (!plano.eventos.length) h += '<div class="muted small">Nenhum evento ainda.</div>';
-    plano.eventos.forEach(function(e){
-      var nLinks = (e.grupos || []).reduce(function(n, g){ return n + (g.links || []).length; }, 0), nDem = plano.demandas.filter(function(d){ return d.evento === e.id; }).length;
-      h += '<button class="r" data-pl="evento" data-id="' + e.id + '" style="display:flex;justify-content:space-between;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:12px 2px;color:inherit;text-align:left;cursor:pointer">' +
-        '<span><b>' + esc(e.nome) + '</b><br><span class="muted small">' + (e.inicio ? esc(quando(e.inicio)) + (e.fim && e.fim !== e.inicio ? ' a ' + esc(quando(e.fim)) : '') : 'Sem data') + '</span></span>' +
-        '<span class="muted small">' + nDem + ' demanda' + (nDem === 1 ? '' : 's') + ' · ' + nLinks + ' link' + (nLinks === 1 ? '' : 's') + ' ›</span></button>';
-    });
-    return h + '</div>';
-  },
-  htmlEvento: function(ev){
-    var h = '<div class="card full planoForm"><div class="row" style="justify-content:space-between"><button class="btn link small" data-pl="eventos">‹ Eventos</button><button class="btn link small" data-pl="apagarEvento">Apagar evento</button></div>' +
-      '<div class="grade2"><div><label for="evN">Nome</label><input id="evN" data-ecampo="nome" value="' + esc(ev.nome) + '"></div><div class="grade2"><div><label for="evI">Começa</label><input id="evI" type="date" data-ecampo="inicio" value="' + esc(ev.inicio || '') + '"></div>' +
-      '<div><label for="evF">Termina</label><input id="evF" type="date" data-ecampo="fim" value="' + esc(ev.fim || '') + '"></div></div></div>' +
-      '<div class="lbl" style="margin-top:12px">Datas importantes</div>' + (ev.marcos || []).map(function(mk, k){
-        return '<div class="lnk"><b>' + esc(quando(mk.data)) + '</b> · ' + esc(mk.nome) + ' <button class="btn link small" data-pl="tirarMarco" data-k="' + k + '">×</button></div>'; }).join('') +
-      '<form class="send" data-plform="marco"><input id="mkNome" placeholder="Ex.: Inscrições abrem" autocomplete="off" required><input id="mkData" type="date" required style="max-width:180px"><button class="btn">Adicionar</button></form>' +
-      '<div class="row" style="justify-content:space-between;margin-top:12px"><div class="lbl">Demandas deste evento</div><button class="btn small" data-pl="novaDemanda" data-evento="' + ev.id + '">+ Demanda</button></div>' +
-      plano.demandas.filter(function(d){ return d.evento === ev.id; }).map(function(d){ var est = plano.estado(d), p = equipe.pessoa(d.pessoa);
-        return '<div class="lnk"><span class="estado ' + est + '">' + ESTADO_DEMANDA[est] + '</span> <b>' + esc(d.titulo) + '</b> <span class="muted small">' + esc(p ? p.nome : '') + (d.prazo ? ' · prazo ' + esc(quando(d.prazo)) : '') + '</span> <button class="btn link small" data-pl="editarDemanda" data-id="' + d.id + '">Abrir</button></div>'; }).join('') + '</div>';
-    h += '<div class="card full"><div class="lbl">Materiais (links do Drive)</div>';
-    (ev.grupos || []).forEach(function(g, gi){
-      h += '<div class="grupo"><div class="row" style="justify-content:space-between"><b>' + esc(g.nome) + '</b><button class="btn link small" data-pl="tirarGrupo" data-g="' + gi + '" title="Tirar o grupo">×</button></div>' +
-        (g.links || []).map(function(l, li){
-          return '<div class="lnk"><a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.titulo || l.url) + ' ↗</a>' +
-            '<button class="usar" data-pl="usar" data-g="' + gi + '" data-l="' + li + '">▶ Usar no culto</button>' +
-            '<button class="btn link small" data-pl="tirarLink" data-g="' + gi + '" data-l="' + li + '">×</button></div>';
-        }).join('') +
-        '<form class="send" data-plform="link" data-g="' + gi + '"><input id="lkT' + gi + '" placeholder="Nome (ex.: Arte stories)" autocomplete="off"><input id="lkU' + gi + '" placeholder="Link do Google Drive" inputmode="url" autocomplete="off" required><button class="btn">Adicionar</button></form></div>';
-    });
-    h += '<form class="send" data-plform="grupo" style="margin-top:10px"><input id="grNome" placeholder="Novo grupo de links (ex.: Bastidores)" autocomplete="off" required><button class="btn">Criar grupo</button></form></div>';
-    return h;
-  },
   escolherCulto: function(link){
     var hoje = hojeISO();
     var l = db.cultos.filter(function(c){ return !c.data || c.data >= hoje; }).sort(function(a, b){ return (a.data || '9').localeCompare(b.data || '9'); });
@@ -1322,10 +1499,10 @@ var plano = {
   escolherMaterial: function(){
     var c = culto(); if (!c) return; var ops = [];
     plano.eventos.forEach(function(ev){
-      var links = []; (ev.grupos || []).forEach(function(g){ (g.links || []).forEach(function(l){ links.push({t: l.titulo || g.nome, sub: g.nome, f: function(){ plano.usarNoCulto(c.id, l); ui.itemId = c.itens[c.itens.length - 1].id; ui.view = 'item'; render(); }}); }); });
+      var links = plano.materiais(ev).map(function(l){ return {t: l.titulo || 'Material', sub: ev.nome, f: function(){ plano.usarNoCulto(c.id, l); ui.itemId = c.itens[c.itens.length - 1].id; ui.view = 'item'; render(); }}; });
       if (links.length) { ops.push({cab: ev.nome}); ops = ops.concat(links); }
     });
-    escolherDe('Material de um evento', ops, 'Nenhum material ainda. Adicione links em Planejamento › Eventos e materiais.');
+    escolherDe('Material de um evento', ops, 'Nenhum material ainda. Os materiais ficam na página de cada evento (Agenda).');
   },
   usarNoCulto: function(cultoId, link){
     var c = db.cultos.find(function(k){ return k.id === cultoId; }); if (!c) return;
@@ -1337,76 +1514,100 @@ var plano = {
 
   /* ---- ações ---- */
   clique: function(t){
-    var b = t.closest('[data-pl]'); if (!b) return false;
-    var a = b.dataset.pl, ev = plano.evento(plano.eventoId);
+    var b = t.closest('[data-pl]');
+    if (!b) {
+      var ct = t.closest('[data-cartao]'); if (ct && !t.closest('a')) { plano.abrirTarefa(ct.dataset.cartao); return true; }
+      var tf = t.closest('[data-tarefa]'); if (tf) { ui.tarefaId = tf.dataset.tarefa; ui.itemId = null; ui.view = 'item'; render(); return true; }
+      var dia = t.closest('[data-dia]'); if (dia && plano.aberto) { var r = t.getBoundingClientRect ? t.getBoundingClientRect() : {left: 0, bottom: 0}; plano.menuDia(dia.dataset.dia, Math.min(r.left, innerWidth - 260), r.top + 20); return true; }
+      return false;
+    }
+    var a = b.dataset.pl, ev = plano.evento(ui.eventoId), dd = b.dataset.id && plano.demanda(b.dataset.id);
     if (a === 'fechar') plano.fechar();
-    else if (a === 'aba') { plano.aba = b.dataset.a; plano.editando = null; if (b.dataset.a === 'eventos') plano.eventoId = null; plano.desenhar(); }
+    else if (a === 'aba') { plano.aba = b.dataset.a; plano.desenhar(); }
     else if (a === 'mes') { var d = new Date(+plano.mes.slice(0, 4), +plano.mes.slice(5, 7) - 1 + (+b.dataset.d), 1); plano.mes = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); plano.desenhar(); }
-    else if (a === 'culto') { plano.fechar(); ui.cultoId = b.dataset.id; ui.itemId = null; ui.view = 'roteiro'; render(); }
-    else if (a === 'evento') { plano.aba = 'eventos'; plano.eventoId = b.dataset.id; plano.desenhar(); }
-    else if (a === 'eventos') { plano.eventoId = null; plano.desenhar(); }
-    else if (a === 'novaDemanda') { plano.aba = 'demandas'; plano.editando = {id: uid(), titulo: '', tipo: 'Arte', evento: b.dataset.evento || '', grupo: '', pessoa: '', prazo: '', obs: '', estado: 'a_fazer', criadoEm: new Date().toISOString()}; plano.desenhar(); }
-    else if (a === 'editarDemanda') { var dm = plano.demanda(b.dataset.id); if (dm) { plano.aba = 'demandas'; plano.editando = Object.assign({}, dm); plano.desenhar(); } }
-    else if (a === 'cancelarDemanda') { plano.editando = null; plano.desenhar(); }
-    else if (a === 'prazoAntes') { var pz = new Date(new Date(b.dataset.data + 'T12:00').getTime() - 3 * 864e5); plano.editando.prazo = iso(pz); plano.desenhar(); }
-    else if (a === 'guardarDemanda') {
-      var e = plano.editando; if (!e.titulo.trim()) { toast('Escreva o que precisa ser feito.'); return true; }
-      plano.salvarDemanda(e, plano.demanda(e.id)); plano.editando = null; toast('Demanda salva.' + (e.pessoa ? ' Toque em "Avisar" para mandar no WhatsApp.' : '')); plano.desenhar();
+    else if (a === 'culto') { plano.fechar(); ui.cultoId = b.dataset.id; ui.eventoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; render(); }
+    else if (a === 'evento') { plano.fechar(); ui.eventoId = b.dataset.id; ui.cultoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; render(); }
+    else if (a === 'tarefa') plano.abrirTarefa(b.dataset.id);
+    else if (a === 'calendario') plano.abrir('calendario');
+    else if (a === 'novo') {
+      var r = b.getBoundingClientRect();
+      menu(r.left, r.bottom + 6, [{t: 'Culto', f: function(){ novoCulto(); }}, {t: 'Evento (acampamento, conferência…)', f: function(){ plano.novoEvento(''); }}]);
     }
-    else if (a === 'apagarDemanda') { var ap = plano.editando; dialogo('Apagar a demanda?', esc(ap.titulo), 'Apagar', function(){ plano.apagarDemanda(ap); plano.editando = null; plano.desenhar(); }); }
-    else if (a === 'avisarDemanda') {
-      var dd = plano.demanda(b.dataset.id), pp = dd && equipe.pessoa(dd.pessoa); if (!pp) return true; var evd = plano.evento(dd.evento);
-      var texto = 'Olá, ' + (pp.nome || '').split(' ')[0] + '! Nova demanda para você: *' + dd.titulo + '* (' + dd.tipo + (evd ? ', ' + evd.nome : '') + ')' + (dd.prazo ? ', prazo ' + quando(dd.prazo) : '') + '.\n' +
-        (dd.estado === 'ajustar' && dd.retorno ? 'Ajuste: ' + dd.retorno + '\n' : '') + 'Veja e entregue por aqui: ' + linkPessoal(pp.id);
-      window.open('https://wa.me/' + whats(pp.whatsapp) + '?text=' + encodeURIComponent(texto), '_blank', 'noopener');
+    else if (a === 'prazoAntes') { var td = plano.demanda(ui.tarefaId); if (td) { plano.salvarDemanda(Object.assign({}, td, {prazo: iso(new Date(new Date(b.dataset.data + 'T12:00').getTime() - 3 * 864e5))}), td); renderEditor(); } }
+    else if (a === 'apagarDemanda' && dd) dialogo('Apagar a tarefa?', esc(dd.titulo), 'Apagar', function(){ plano.apagarDemanda(dd); if (ui.view === 'item') ui.view = 'roteiro'; render(); });
+    else if (a === 'avisarDemanda' && dd) plano.avisar(dd);
+    else if (a === 'aprovar' && dd) plano.aprovar(dd);
+    else if (a === 'ajuste' && dd) plano.pedirAjuste(dd);
+    else if (a === 'usarDemanda' && dd) { var eu = plano.entrega(dd); if (eu && eu.url) plano.escolherCulto({titulo: dd.titulo, url: eu.url}); }
+    else if (a === 'apagarEvento' && ev) dialogo('Apagar o evento "' + esc(ev.nome) + '"?', 'As tarefas dele continuam no quadro de Demandas, soltas.', 'Apagar', function(){
+      plano.eventos = plano.eventos.filter(function(x){ return x.id !== ev.id; });
+      nuvem.m.deleteDoc(nuvem.m.doc(nuvem.fs, 'eventos', ev.id)); ui.eventoId = null; ui.tarefaId = null; ui.view = 'cultos'; render(); });
+    else if (a === 'tirarMarco' && ev) { ev.marcos.splice(+b.dataset.k, 1); plano.salvarEvento(ev); renderEvento(); }
+    else if (a === 'usar' && ev) { var mt = plano.materiais(ev)[+b.dataset.m]; if (mt) plano.escolherCulto(mt); }
+    else if (a === 'tirarLink' && ev) {
+      var tl = b.dataset.t;
+      if (tl.charAt(0) === 'l') ev.links.splice(+tl.slice(1), 1);
+      else { var pg = tl.slice(1).split('_'); ev.grupos[+pg[0]].links.splice(+pg[1], 1); }
+      plano.salvarEvento(ev); renderEvento();
     }
-    else if (a === 'aprovar') {
-      var da = plano.demanda(b.dataset.id), en = da && plano.entrega(da); if (!da) return true;
-      var nova = Object.assign({}, da, {estado: 'pronto', aprovadoEm: new Date().toISOString()});
-      plano.salvarDemanda(nova, da);
-      var eva = plano.evento(da.evento), g = eva && (eva.grupos || []).find(function(x){ return x.id === da.grupo; });
-      if (g && en && en.url && !(g.links || []).some(function(l){ return l.url === en.url; })) { g.links = (g.links || []).concat([{id: uid(), titulo: da.titulo, url: en.url, demanda: da.id}]); plano.salvarEvento(eva); }
-      toast('Aprovada.' + (g ? ' O link foi para "' + g.nome + '".' : ''));
-    }
-    else if (a === 'ajuste') {
-      var dj = plano.demanda(b.dataset.id); if (!dj) return true;
-      dialogo('Pedir ajuste', 'O que precisa mudar?<input id="ajTexto" style="width:100%;margin-top:8px;background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:8px;color:var(--text)">', 'Pedir ajuste', function(){});
-      var inp = document.getElementById('ajTexto'), ok = inp.closest('.dialog').querySelector('[data-ok]'); inp.focus();
-      ok.onclick = function(){ var nv = Object.assign({}, dj, {estado: 'ajustar', retorno: inp.value.trim(), ajusteEm: new Date().toISOString()}); inp.closest('.dialogBg').remove(); plano.salvarDemanda(nv, dj); toast('Ajuste pedido. Toque em "Avisar" para mandar no WhatsApp.'); };
-    }
-    else if (a === 'apagarEvento' && ev) { dialogo('Apagar o evento "' + ev.nome + '"?', 'As demandas continuam; os links deste evento somem.', 'Apagar', function(){ nuvem.m.deleteDoc(nuvem.m.doc(nuvem.fs, 'eventos', ev.id)); plano.eventoId = null; plano.desenhar(); }); }
-    else if (a === 'tirarMarco' && ev) { ev.marcos.splice(+b.dataset.k, 1); plano.salvarEvento(ev); plano.desenhar(); }
-    else if (a === 'tirarGrupo' && ev) { var gr = ev.grupos[+b.dataset.g]; dialogo('Tirar o grupo "' + gr.nome + '"?', 'Os links dele somem daqui.', 'Tirar', function(){ ev.grupos.splice(+b.dataset.g, 1); plano.salvarEvento(ev); plano.desenhar(); }); }
-    else if (a === 'usar' && ev) plano.escolherCulto(ev.grupos[+b.dataset.g].links[+b.dataset.l]);
-    else if (a === 'usarDemanda') { var du = plano.demanda(b.dataset.id), eu = du && plano.entrega(du); if (eu && eu.url) plano.escolherCulto({titulo: du.titulo, url: eu.url}); }
-    else if (a === 'tirarLink' && ev) { ev.grupos[+b.dataset.g].links.splice(+b.dataset.l, 1); plano.salvarEvento(ev); plano.desenhar(); }
+    else return false;
     return true;
   },
   mudanca: function(t){
-    if (t.dataset.dcampo && plano.editando) { plano.editando[t.dataset.dcampo] = t.value; if (t.dataset.dcampo === 'evento') { plano.editando.grupo = ''; plano.desenhar(); } return true; }
-    var ev = plano.evento(plano.eventoId);
-    if (t.dataset.ecampo && ev) { ev[t.dataset.ecampo] = t.value.trim(); if (t.dataset.ecampo === 'inicio' && !ev.fim) ev.fim = ev.inicio; plano.salvarEvento(ev); plano.desenhar(); return true; }
+    if (t.dataset.tcampo) { plano.mudarTarefa(t); return true; }
+    var ev = plano.evento(ui.eventoId);
+    if (t.dataset.ecampo && ev) {
+      ev[t.dataset.ecampo] = t.value.trim();
+      if (t.dataset.ecampo === 'nome' && !ev.nome) ev.nome = 'Evento';
+      if (t.dataset.ecampo === 'inicio' && (!ev.fim || ev.fim < ev.inicio)) ev.fim = ev.inicio;
+      plano.salvarEvento(ev); renderCultos(); if (t.dataset.ecampo !== 'nome') renderEvento(); return true;
+    }
     return false;
   },
   enviarForm: function(f){
-    var tipo = f.dataset.plform, ev = plano.evento(plano.eventoId);
-    if (tipo === 'evento') {
-      var n = document.getElementById('evNome').value.trim(); if (!n) return;
-      var novo = {id: uid(), nome: n, inicio: '', fim: '', marcos: [], grupos: GRUPOS_PADRAO.map(function(g){ return {id: uid(), nome: g, links: []}; }), criadoEm: new Date().toISOString()};
-      plano.eventos.push(novo); plano.salvarEvento(novo); plano.eventoId = novo.id; plano.desenhar();
+    var tipo = f.dataset.plform, ev = plano.evento(ui.eventoId);
+    if (tipo === 'tarefa') {
+      var tt = f.querySelector('[name=tNovo]').value.trim(); if (!tt) return;
+      var campos = {titulo: tt, pessoa: f.querySelector('[name=tPessoa]').value, prazo: f.querySelector('[name=tPrazo]').value};
+      if (f.dataset.tipo === 'evento') campos.evento = f.dataset.id;
+      else if (f.dataset.tipo === 'culto') campos.culto = f.dataset.id;
+      else { var de = f.querySelector('[name=tDe]').value; if (de.slice(0, 2) === 'e:') campos.evento = de.slice(2); if (de.slice(0, 2) === 'c:') campos.culto = de.slice(2); }
+      var noQuadro = !!f.closest('#plano');
+      plano.novaTarefa(campos); plano.atualizar(true);
+      var n = document.querySelector((noQuadro ? '#plano' : '#roteiro') + ' [name=tNovo]'); if (n && !document.querySelector('.dialogBg')) n.focus();
     } else if (tipo === 'marco' && ev) {
       var mn = document.getElementById('mkNome').value.trim(), md = document.getElementById('mkData').value; if (!mn || !md) return;
-      ev.marcos = (ev.marcos || []).concat([{id: uid(), nome: mn, data: md}]).sort(function(a, b){ return a.data.localeCompare(b.data); }); plano.salvarEvento(ev); plano.desenhar();
-    } else if (tipo === 'grupo' && ev) {
-      var gn = document.getElementById('grNome').value.trim(); if (!gn) return;
-      ev.grupos = (ev.grupos || []).concat([{id: uid(), nome: gn, links: []}]); plano.salvarEvento(ev); plano.desenhar();
+      ev.marcos = (ev.marcos || []).concat([{id: uid(), nome: mn, data: md}]).sort(function(a, b){ return a.data.localeCompare(b.data); }); plano.salvarEvento(ev); renderEvento();
     } else if (tipo === 'link' && ev) {
-      var gi = +f.dataset.g, url = document.getElementById('lkU' + gi).value.trim(), tt = document.getElementById('lkT' + gi).value.trim(); if (!url) return;
+      var url = document.getElementById('lkU').value.trim(), tl = document.getElementById('lkT').value.trim(); if (!url) return;
       if (lerDrive(url).estado !== 'ok') { toast('Esse link não parece de um arquivo do Google Drive (pasta não serve).'); return; }
-      ev.grupos[gi].links = (ev.grupos[gi].links || []).concat([{id: uid(), titulo: tt || ev.grupos[gi].nome, url: url}]); plano.salvarEvento(ev); plano.desenhar();
+      ev.links = (ev.links || []).concat([{id: uid(), titulo: tl || 'Material', url: url}]); plano.salvarEvento(ev); renderEvento();
     }
   }
 };
+
+/* Página do evento (no lugar do roteiro): datas, tarefas e materiais. */
+function renderEvento(){
+  var el = document.getElementById('roteiro'), ev = plano.evento(ui.eventoId);
+  if (!ev) { el.innerHTML = '<div class="empty">Carregando o evento…</div>'; return; }
+  var mats = plano.materiais(ev);
+  var h = '<button class="btn link back" data-voltar="cultos">‹ Agenda</button>' +
+    '<div class="head"><div style="flex:1;min-width:240px"><div class="muted small" style="letter-spacing:.5px">EVENTO</div>' +
+    '<input class="titleIn" id="evNome" data-ecampo="nome" aria-label="Nome do evento" value="' + esc(ev.nome) + '" placeholder="Nome do evento">' +
+    '<div class="when"><input type="date" id="evI" data-ecampo="inicio" aria-label="Começa" value="' + esc(ev.inicio || '') + '"><span class="muted">até</span><input type="date" id="evF" data-ecampo="fim" aria-label="Termina" value="' + esc(ev.fim || '') + '"></div></div></div>' +
+    '<div class="secao"><div class="lblSec">Datas importantes</div><div class="fchips">' + (ev.marcos || []).map(function(mk, k){
+      return '<span class="marcoChip"><b>' + esc(mk.data.slice(8, 10) + '/' + mk.data.slice(5, 7)) + '</b> ' + esc(mk.nome) + '<button data-pl="tirarMarco" data-k="' + k + '" title="Tirar">×</button></span>'; }).join('') + '</div>' +
+    '<form class="addTarefa" data-plform="marco"><input id="mkNome" placeholder="Ex.: Inscrições abrem" autocomplete="off" required><input id="mkData" type="date" required><button class="btn">Adicionar</button></form></div>' +
+    plano.htmlTarefas('evento', ev.id) +
+    '<div class="secao"><div class="lblSec">Materiais</div>' +
+    (mats.length ? mats.map(function(m, i){
+      return '<div class="lnk"><a href="' + esc(m.url) + '" target="_blank" rel="noopener">' + esc(m.titulo || 'Material') + ' ↗</a>' + (m.tarefa ? '<span class="muted small">entrega aprovada</span>' : '') +
+        '<button class="usar" data-pl="usar" data-m="' + i + '">▶ Usar no culto</button>' + (m.tirar ? '<button class="btn link small" data-pl="tirarLink" data-t="' + m.tirar + '" title="Tirar">×</button>' : '') + '</div>'; }).join('')
+      : '<div class="muted small">As entregas aprovadas das tarefas aparecem aqui sozinhas. Também dá para colar um link do Drive.</div>') +
+    '<form class="addTarefa" data-plform="link"><input id="lkT" placeholder="Nome (ex.: Arte stories)" autocomplete="off"><input id="lkU" placeholder="Link do Google Drive" inputmode="url" autocomplete="off" required><button class="btn">Adicionar</button></form></div>' +
+    '<div><button class="btn link small" data-pl="apagarEvento">Apagar evento</button></div>';
+  el.innerHTML = h;
+}
 function iso(d){ return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 
 /* ---------------- ao vivo (bloco 6) ----------------
@@ -1572,13 +1773,15 @@ document.addEventListener('click', function(e){
   var t = e.target;
   if (t.closest('#novoCulto')) return novoCulto();
   var cb = t.closest('[data-culto]');
-  if (cb) { ui.cultoId = cb.dataset.culto; ui.itemId = null; ui.view = 'roteiro'; salvar(); return render(); }
+  if (cb) { ui.cultoId = cb.dataset.culto; ui.eventoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; salvar(); return render(); }
+  var eb = t.closest('[data-evento]');
+  if (eb) { ui.eventoId = eb.dataset.evento; ui.cultoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; return render(); }
   if (t.closest('[data-publicar]')) return publicar();
   if (t.closest('[data-copiar]')) return copiarParaProjecao();
   if (t.closest('[data-aovivo]')) return aoVivo.abrir();
   if (t.closest('[data-escala]')) return equipe.abrir('escala');
   if (t.id === 'btnEquipe') return equipe.abrir('equipe');
-  if (t.closest('#btnPlano')) return plano.abrir('calendario');
+  if (t.closest('#btnPlano')) return plano.abrir('quadro');
   if (plano.clique(t)) return;
   if (equipe.clique(t)) return;
   var bm = t.closest('[data-musica]'); if (bm) return banco.escolher(bm.dataset.musica);
@@ -1586,7 +1789,7 @@ document.addEventListener('click', function(e){
   if (t.closest('[data-trocarmusica]')) return banco.trocar();
   var bc = t.closest('[data-cand]'); if (bc) return banco.acaoCandidato(bc.dataset.cand);
   var v = t.closest('[data-voltar]');
-  if (v) { ui.view = v.dataset.voltar; if (ui.view === 'cultos') ui.itemId = null; return render(); }
+  if (v) { ui.view = v.dataset.voltar; ui.tarefaId = null; if (ui.view === 'cultos') ui.itemId = null; return render(); }
   if (t.closest('#addItem')) {
     var r = t.closest('#addItem').getBoundingClientRect();
     var ops = Object.keys(TIPOS).map(function(k){ return {t: TIPOS[k].nome, f: function(){ novoItem(k); }}; });
@@ -1594,7 +1797,7 @@ document.addEventListener('click', function(e){
     return menu(r.left, r.bottom + 6, ops);
   }
   var li = t.closest('[data-item]');
-  if (li && !t.closest('[data-grip]')) { ui.letraNota = ''; ui.itemId = li.dataset.item; ui.view = 'item'; renderRoteiro(); renderEditor(); document.getElementById('app').dataset.view = ui.view; }
+  if (li && !t.closest('[data-grip]')) { ui.letraNota = ''; ui.itemId = li.dataset.item; ui.tarefaId = null; ui.view = 'item'; renderRoteiro(); renderEditor(); document.getElementById('app').dataset.view = ui.view; }
 });
 document.addEventListener('keydown', function(e){ if (e.key === 'Escape') fecharMenu(); });
 
@@ -1618,7 +1821,6 @@ document.addEventListener('touchstart', function(e){
 ['touchend', 'touchmove', 'touchcancel'].forEach(function(n){ document.addEventListener(n, function(){ if (longo) { clearTimeout(longo); longo = null; } }, {passive: true}); });
 
 document.addEventListener('input', function(e){
-  if (e.target.dataset && e.target.dataset.dcampo && plano.editando) { plano.editando[e.target.dataset.dcampo] = e.target.value; return; }
   var c = culto(); if (!c) return;
   var id = e.target.id, i = item();
   if (id === 'cNome') c.nome = e.target.value;
@@ -1646,6 +1848,24 @@ document.addEventListener('submit', function(e){
   var p = e.target.closest && e.target.closest('[data-plform]'); if (p) { e.preventDefault(); plano.enviarForm(p); return; }
   var f = e.target.closest && e.target.closest('[data-eqform]'); if (!f) return;
   e.preventDefault(); equipe.enviarForm(f);
+});
+
+/* Quadro de demandas: arrastar o cartão para outra coluna muda o andamento. */
+var cartaoArrastado = null;
+document.addEventListener('dragstart', function(e){
+  var c = e.target.closest && e.target.closest('[data-cartao]'); if (!c) return;
+  cartaoArrastado = c.dataset.cartao; c.classList.add('arrastando');
+  try { e.dataTransfer.setData('text/plain', cartaoArrastado); e.dataTransfer.effectAllowed = 'move'; } catch (x) {}
+});
+document.addEventListener('dragend', function(){ cartaoArrastado = null; document.querySelectorAll('.arrastando,.colAlvo').forEach(function(n){ n.classList.remove('arrastando', 'colAlvo'); }); });
+document.addEventListener('dragover', function(e){
+  var col = cartaoArrastado && e.target.closest && e.target.closest('[data-coluna]'); if (!col) return;
+  e.preventDefault(); document.querySelectorAll('.colAlvo').forEach(function(n){ if (n !== col) n.classList.remove('colAlvo'); }); col.classList.add('colAlvo');
+});
+document.addEventListener('drop', function(e){
+  var col = cartaoArrastado && e.target.closest && e.target.closest('[data-coluna]'); if (!col) return;
+  e.preventDefault(); var d = plano.demanda(cartaoArrastado); cartaoArrastado = null;
+  if (d) plano.mover(d, col.dataset.coluna);
 });
 
 /* Arrastar pelo ⋮⋮ (mouse e dedo): mostra a linha onde o item vai cair. */
@@ -1724,7 +1944,7 @@ function paginaPessoal(cfg, cod){
     if (dem.length) {
       h += '<div class="card full"><div class="lbl">Minhas demandas</div>';
       dem.forEach(function(d){
-        var en = (dados.entregas || {})[d.id], est = d.estado === 'pronto' ? 'pronto' : en && en.em >= (d.ajusteEm || '') ? en.estado : d.estado === 'ajustar' ? 'ajustar' : 'a_fazer';
+        var en = (dados.entregas || {})[d.id], est = d.estado === 'pronto' ? 'pronto' : en && en.em >= (d.ajusteEm || '') ? en.estado : /^(ajustar|fazendo|para_aprovar)$/.test(d.estado) ? d.estado : 'a_fazer';
         var atras = est !== 'pronto' && d.prazo && d.prazo < hoje;
         h += '<div style="border-top:1px solid var(--line);padding:12px 0;display:flex;flex-direction:column;gap:8px">' +
           '<div><b>' + esc(d.titulo) + '</b> · ' + esc(d.tipo) + (d.evento ? ' · ' + esc(d.evento) : '') + '</div>' +
