@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#141414">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>somun cam</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/*
+ * somun cam pelo navegador: a câmera do celular vira uma entrada do somun live, sem instalar nada.
+ * O acerto passa pelo Firestore (camParear/<código>); a imagem vai direto pelo Wi-Fi (WebRTC).
+ * Veja pedido-somun-cam-web.md e plugins/projeto-live/webcam-source.cpp no somun live.
+ */
+:root{--bg:#141414;--text:#F2F2F2;--gray:#8C8C8C;--gray2:#A8A8A8;--red:#E5483B}
+html,body{margin:0;height:100%;background:#000;color:var(--text);font-family:Outfit,system-ui,sans-serif;
+  overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+video{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+#top{position:fixed;left:0;right:0;top:0;display:flex;align-items:center;gap:12px;
+  padding:calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 16px) 12px calc(env(safe-area-inset-left) + 16px);
+  background:linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,0));pointer-events:none}
+.word{font-weight:800;font-size:22px;letter-spacing:-.5px}
+.word i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);margin-left:2px}
+#nome{font-size:17px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#dot{width:10px;height:10px;border-radius:50%;background:var(--gray)}
+#dot.on{background:var(--text)}
+#ar{position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 0 0 14px var(--red);display:none}
+body.noar #ar{display:block}
+#msg{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:32px;
+  background:var(--bg);text-align:center}
+#msg.show{display:flex}
+#msg div{max-width:440px}
+#msg h1{font-size:22px;font-weight:600;margin:0 0 10px}
+#msg p{font-size:16px;color:var(--gray2);margin:0;line-height:1.45}
+#msg button{margin-top:22px;background:#fff;color:#000;border:0;border-radius:10px;font:600 16px Outfit,system-ui,sans-serif;padding:12px 22px}
+</style>
+</head>
+<body>
+<video id="v" autoplay playsinline muted></video>
+<div id="ar"></div>
+<div id="top"><span class="word">cam<i></i></span><span id="nome"></span><span id="dot"></span></div>
+<div id="msg"><div><h1 id="msgT"></h1><p id="msgP"></p><button id="msgB" hidden></button></div></div>
+<script src="../firebase-config.js"></script>
+<script type="module">
+const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+const { initializeApp } = await import(SDK + 'firebase-app.js');
+const F = await import(SDK + 'firebase-firestore.js');
+
+const $ = (id) => document.getElementById(id);
+const code = decodeURIComponent(location.hash.slice(1)).trim();
+let stream = null, pc = null, tentativa = 0, unsub = null, wake = null;
+
+function mensagem(titulo, texto, botao, acao) {
+  $('msgT').textContent = titulo;
+  $('msgP').textContent = texto || '';
+  $('msgB').hidden = !botao;
+  if (botao) { $('msgB').textContent = botao; $('msgB').onclick = acao; }
+  $('msg').classList.add('show');
+}
+function semMensagem() { $('msg').classList.remove('show'); }
+function ligado(sim) { $('dot').classList.toggle('on', sim); }
+
+if (!code) {
+  mensagem('Leia o código no computador', 'Abra esta página pelo QR code que aparece na entrada "Celular sem app" do somun live.');
+  throw new Error('sem código');
+}
+
+const app = initializeApp(window.PL_FIREBASE);
+const db = F.getFirestore(app);
+const ref = F.doc(db, 'camParear', code);
+
+async function abrirCamera() {
+  if (stream && stream.getVideoTracks().some((t) => t.readyState === 'live')) return true;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } }
+    });
+    $('v').srcObject = stream;
+    return true;
+  } catch (e) {
+    mensagem('Sem acesso à câmera', 'Permita o uso da câmera para este site nos ajustes do navegador e toque em Tentar de novo.', 'Tentar de novo', () => location.reload());
+    return false;
+  }
+}
+
+async function manterTelaAcesa() {
+  try { if ('wakeLock' in navigator && !wake) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } } catch (e) {}
+}
+
+function esperarOferta(id) {
+  return new Promise((resolve, reject) => {
+    if (unsub) unsub();
+    const prazo = setTimeout(() => { if (unsub) unsub(); reject(new Error('prazo')); }, 20000);
+    unsub = F.onSnapshot(ref, (snap) => {
+      const d = snap.data() || {};
+      if (d.ofertaPara === id && d.oferta) { clearTimeout(prazo); unsub(); unsub = null; resolve(d.oferta); }
+    }, (e) => { clearTimeout(prazo); reject(e); });
+  });
+}
+
+function juntarEnderecos(conexao) {
+  return new Promise((resolve) => {
+    if (conexao.iceGatheringState === 'complete') return resolve();
+    const fim = () => { if (conexao.iceGatheringState === 'complete') { conexao.removeEventListener('icegatheringstatechange', fim); resolve(); } };
+    conexao.addEventListener('icegatheringstatechange', fim);
+    setTimeout(resolve, 3000);
+  });
+}
+
+async function conectar() {
+  const minha = ++tentativa;
+  ligado(false);
+  document.body.classList.remove('noar');
+  if (pc) { try { pc.close(); } catch (e) {} pc = null; }
+  if (!(await abrirCamera())) return;
+  manterTelaAcesa();
+
+  const id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const conexao = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+  pc = conexao;
+  conexao.ondatachannel = (e) => {
+    e.channel.onmessage = (m) => {
+      const t = String(m.data);
+      if (t.startsWith('nome:')) $('nome').textContent = t.slice(5);
+      else if (t === 'tally:1') document.body.classList.add('noar');
+      else if (t === 'tally:0') document.body.classList.remove('noar');
+    };
+  };
+  let caiu = null;
+  conexao.onconnectionstatechange = () => {
+    if (minha !== tentativa) return;
+    const s = conexao.connectionState;
+    if (s === 'connected') { clearTimeout(caiu); semMensagem(); ligado(true); }
+    else if (s === 'disconnected') { ligado(false); clearTimeout(caiu); caiu = setTimeout(() => { if (minha === tentativa) conectar(); }, 5000); }
+    else if (s === 'failed') {
+      ligado(false);
+      mensagem('Não deu para ligar no computador', 'Veja se o celular está no mesmo Wi-Fi do computador. Se estiver, o roteador pode estar separando os aparelhos ("isolamento de clientes", comum em rede de visitante): desligue isso no roteador ou use uma rede só da equipe.', 'Tentar de novo', () => conectar());
+    }
+  };
+
+  try {
+    await F.updateDoc(ref, { pedido: id, resposta: '', respostaDe: '' });
+  } catch (e) {
+    mensagem('Código não encontrado', 'Leia de novo o QR code que aparece no computador. Se você trocou o código lá, este link antigo não vale mais.', 'Tentar de novo', () => location.reload());
+    return;
+  }
+
+  let oferta;
+  try { oferta = await esperarOferta(id); } catch (e) {
+    if (minha !== tentativa) return;
+    mensagem('O computador não respondeu', 'Veja se o somun live está aberto, com a entrada "Celular sem app" e a conta do somun ligada.', 'Tentar de novo', () => conectar());
+    return;
+  }
+  if (minha !== tentativa) return;
+
+  await conexao.setRemoteDescription({ type: 'offer', sdp: oferta });
+  const video = stream.getVideoTracks()[0];
+  const tr = conexao.getTransceivers().find((t) => t.receiver && t.receiver.track && t.receiver.track.kind === 'video');
+  if (tr) { tr.direction = 'sendonly'; await tr.sender.replaceTrack(video); }
+  else conexao.addTrack(video, stream);
+  const resposta = await conexao.createAnswer();
+  await conexao.setLocalDescription(resposta);
+  await juntarEnderecos(conexao);
+  if (minha !== tentativa) return;
+  await F.updateDoc(ref, { resposta: conexao.localDescription.sdp, respostaDe: id });
+
+  // Imagem boa sem pesar no Wi-Fi: até 5 Mb/s e 30 quadros.
+  try {
+    const sender = conexao.getSenders().find((s) => s.track === video);
+    const p = sender.getParameters();
+    if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+    p.encodings[0].maxBitrate = 5000000;
+    p.encodings[0].maxFramerate = 30;
+    p.degradationPreference = 'maintain-resolution';
+    await sender.setParameters(p);
+  } catch (e) {}
+}
+
+// Voltou para a página (o celular desligou a câmera quando ela saiu da tela): liga tudo de novo.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  const viva = stream && stream.getVideoTracks().some((t) => t.readyState === 'live');
+  if (!viva || !pc || pc.connectionState !== 'connected') { stream = viva ? stream : null; conectar(); }
+  manterTelaAcesa();
+});
+
+conectar();
+</script>
+</body>
+</html>

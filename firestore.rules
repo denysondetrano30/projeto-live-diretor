@@ -83,6 +83,20 @@ service cloud.firestore {
         && request.resource.data.owner == request.auth.uid;
     }
 
+    // Celular sem app (somun cam pelo navegador): cada entrada do somun live tem um documento com um
+    // código longo e aleatório (o QR code). O celular, sem login, lê o documento e só pode escrever o
+    // pedido de conexão e a resposta dele. O resto (oferta, dono) só a conta da igreja.
+    match /camParear/{codigo} {
+      allow get: if true;
+      allow list: if request.auth != null && resource.data.owner == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.owner == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.owner == request.auth.uid;
+      allow update: if (request.auth != null
+          && resource.data.owner == request.auth.uid
+          && request.resource.data.owner == request.auth.uid)
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pedido', 'resposta', 'respostaDe']);
+    }
+
         // Preferências de cada conta (as respostas prontas do diretor).
     match /perfis/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
