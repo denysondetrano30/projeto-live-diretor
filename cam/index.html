@@ -75,10 +75,17 @@ const ref = F.doc(db, 'camParear', code);
 async function abrirCamera() {
   if (stream && stream.getVideoTracks().some((t) => t.readyState === 'live')) return true;
   try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } }
-    });
+    // Pede 30 quadros no mínimo: sem isso, em lugar com pouca luz a câmera do celular segura cada
+    // quadro mais tempo para clarear e cai para ~20 quadros por segundo. Se o celular não aceitar,
+    // tenta de novo sem o mínimo.
+    const base = { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } };
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { ...base, frameRate: { min: 30, ideal: 30 } } });
+    } catch (e) {
+      if (e && e.name !== 'OverconstrainedError' && e.name !== 'ConstraintNotSatisfiedError') throw e;
+      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { ...base, frameRate: { ideal: 30 } } });
+    }
+    try { await stream.getVideoTracks()[0].applyConstraints({ ...base, frameRate: { min: 30, ideal: 30 } }); } catch (e) {}
     $('v').srcObject = stream;
     // Avisa o codificador que é vídeo com movimento (prefere quadros a nitidez parada).
     try { stream.getVideoTracks()[0].contentHint = 'motion'; } catch (e) {}
@@ -125,7 +132,28 @@ async function conectar() {
   const conexao = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
   pc = conexao;
   conexao.ondatachannel = (e) => {
-    e.channel.onmessage = (m) => {
+    const canal = e.channel;
+    // A cada 10 s conta ao computador o que a câmera e o codificador estão fazendo (vai para o log).
+    let antes = null;
+    const relatorio = setInterval(async () => {
+      if (pc !== conexao || canal.readyState === 'closed') { clearInterval(relatorio); return; }
+      if (canal.readyState !== 'open') return;
+      try {
+        const t = stream && stream.getVideoTracks()[0];
+        const c = t ? t.getSettings() : {};
+        const info = { camera: { w: c.width, h: c.height, fps: c.frameRate } };
+        (await conexao.getStats()).forEach((r) => {
+          if (r.type !== 'outbound-rtp' || r.kind !== 'video') return;
+          const fps = antes && r.framesEncoded != null ? ((r.framesEncoded - antes.n) * 1000) / (r.timestamp - antes.t) : r.framesPerSecond;
+          antes = { n: r.framesEncoded, t: r.timestamp };
+          info.envio = { w: r.frameWidth, h: r.frameHeight, fps: fps != null ? Math.round(fps * 10) / 10 : null,
+            limite: r.qualityLimitationReason, codificador: r.encoderImplementation };
+        });
+        info.aparelho = navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 160);
+        canal.send('info:' + JSON.stringify(info));
+      } catch (err) {}
+    }, 10000);
+    canal.onmessage = (m) => {
       const t = String(m.data);
       if (t.startsWith('nome:')) $('nome').textContent = t.slice(5);
       else if (t === 'tally:1') document.body.classList.add('noar');
