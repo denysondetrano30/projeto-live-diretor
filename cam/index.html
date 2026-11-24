@@ -111,6 +111,21 @@ function esperarOferta(id) {
   });
 }
 
+// O iPhone segurava ~6 Mb/s e, em cena com muito detalhe, jogava quadros fora para caber (log de
+// 24/11: câmera a 30, envio a ~20). Aqui o H.264 da oferta passa a dizer "aguento 1080p (nível 5.1)"
+// e dá ao codificador do celular folga de banda (mínimo 8, começo 12, máximo 20 Mb/s).
+function ajustarOferta(sdp) {
+  const h264 = new Set();
+  sdp.replace(/a=rtpmap:(\d+) H264\/90000/gi, (_, pt) => { h264.add(pt); return _; });
+  return sdp.split(/\r?\n/).map((linha) => {
+    const m = linha.match(/^a=fmtp:(\d+) (.*)$/);
+    if (!m || !h264.has(m[1])) return linha;
+    let p = m[2].replace(/profile-level-id=([0-9a-f]{4})[0-9a-f]{2}/i, (_, perfil) => 'profile-level-id=' + perfil + '33');
+    if (!/x-google-max-bitrate/.test(p)) p += ';x-google-min-bitrate=8000;x-google-start-bitrate=12000;x-google-max-bitrate=20000';
+    return 'a=fmtp:' + m[1] + ' ' + p;
+  }).join('\r\n');
+}
+
 function juntarEnderecos(conexao) {
   return new Promise((resolve) => {
     if (conexao.iceGatheringState === 'complete') return resolve();
@@ -187,7 +202,7 @@ async function conectar() {
   }
   if (minha !== tentativa) return;
 
-  await conexao.setRemoteDescription({ type: 'offer', sdp: oferta });
+  await conexao.setRemoteDescription({ type: 'offer', sdp: ajustarOferta(oferta) });
   const video = stream.getVideoTracks()[0];
   const tr = conexao.getTransceivers().find((t) => t.receiver && t.receiver.track && t.receiver.track.kind === 'video');
   if (tr) { tr.direction = 'sendonly'; await tr.sender.replaceTrack(video); }
@@ -198,13 +213,13 @@ async function conectar() {
   if (minha !== tentativa) return;
   await F.updateDoc(ref, { resposta: conexao.localDescription.sdp, respostaDe: id });
 
-  // Imagem boa sem pesar no Wi-Fi: até 8 Mb/s e 30 quadros. Se faltar Wi-Fi, o celular baixa a
+  // Imagem boa: até 20 Mb/s (rede local aguenta) e 30 quadros. Se faltar Wi-Fi, o celular baixa a
   // nitidez, mas mantém os quadros por segundo (o movimento fica liso).
   try {
     const sender = conexao.getSenders().find((s) => s.track === video);
     const p = sender.getParameters();
     if (!p.encodings || !p.encodings.length) p.encodings = [{}];
-    p.encodings[0].maxBitrate = 8000000;
+    p.encodings[0].maxBitrate = 20000000;
     p.encodings[0].maxFramerate = 30;
     p.degradationPreference = 'maintain-framerate';
     await sender.setParameters(p);
