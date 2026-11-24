@@ -25,5 +25,9 @@ jobs:
       - uses: actions/upload-pages-artifact@v4
         with:
           path: site
+      # O GitHub às vezes ainda não "enxerga" o pacote logo depois de enviado (erro "No artifacts named
+      # github-pages"); uma pequena espera resolve.
+      - name: Espera o pacote aparecer
+        run: sleep 20
       - id: deployment
         uses: actions/deploy-pages@v4
