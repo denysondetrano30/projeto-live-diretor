@@ -496,7 +496,20 @@ function lerDrive(link){
   return m ? {estado: 'ok', id: m[1]} : {estado: 'naoDrive'};
 }
 function slides(texto){ return (texto || '').split(/\n\s*\n/).filter(function(s){ return s.trim(); }).length; }
+/* Horário previsto do item: a hora do culto mais os minutos dos itens de antes (vazio se algum
+ * item de antes não tem duração). A mesa do somun live usa a mesma conta. */
+function horaItem(c, i){
+  if (!c || !/^\d\d:\d\d$/.test(c.hora || '')) return '';
+  var t = parseInt(c.hora.slice(0, 2), 10) * 60 + parseInt(c.hora.slice(3, 5), 10);
+  for (var n = 0; n < c.itens.length && c.itens[n] !== i; n++) { if (!(c.itens[n].min > 0)) return ''; t += c.itens[n].min; }
+  t = t % (24 * 60);
+  return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0');
+}
 function resumo(i){
+  var hh = horaItem(culto(), i);
+  return (hh ? hh + (i.min > 0 ? ' · ' + i.min + ' min' : '') + ' · ' : '') + resumoTipo(i);
+}
+function resumoTipo(i){
   var t = TIPOS[i.tipo].nome;
   if (i.tipo === 'musica' && i.musicaId) return t + ' · do banco da igreja' + (i.artista ? ' · ' + esc(i.artista) : '');
   if (i.tipo === 'musica' || i.tipo === 'texto') { var n = slides(i.letra); return t + ' · ' + (n ? n + (n === 1 ? ' slide' : ' slides') : (i.tipo === 'musica' ? 'da biblioteca da Projeção' : 'sem texto ainda')); }
@@ -614,6 +627,7 @@ function renderEditor(){
     '<div class="field"><label for="iDestino">Destino</label><select id="iDestino">';
   TIPOS[i.tipo].destinos.forEach(function(d){ h += '<option value="' + d + '"' + (d === i.destino ? ' selected' : '') + '>' + DESTINOS[d].longo + '</option>'; });
   h += '</select></div>';
+  h += '<div class="field"><label for="iMin">Duração em minutos (opcional) · com ela, a mesa do somun live mostra o horário previsto e o atraso</label><input id="iMin" type="number" min="0" max="600" inputmode="numeric" value="' + (i.min > 0 ? i.min : '') + '" placeholder="Ex.: 10" style="max-width:140px"></div>';
   if (i.tipo === 'musica' && nuvem.user) h += banco.editor(i);
   if (i.tipo === 'musica' && nuvem.user) h += banco.candidato(i);
   if (i.tipo === 'texto' || (i.tipo === 'musica' && !i.musicaId)) {
@@ -1873,10 +1887,12 @@ document.addEventListener('input', function(e){
   else if (i && id === 'iLetra') { i.letra = e.target.value; mostrarSlides(i); }
   else if (i && id === 'iLink') { i.link = e.target.value.trim(); mostrarLink(i); }
   else if (i && id === 'iObs') i.obs = e.target.value;
+  else if (i && id === 'iMin') { var m = parseInt(e.target.value, 10); if (m > 0) i.min = Math.min(m, 600); else delete i.min; salvar(); c.itens.forEach(atualizarLinha); atualizarStatus(); return; }
   else if (i && id === 'iCifra') i.cifra = e.target.value;
   else return;
   salvar();
   if (i && id.charAt(0) === 'i') atualizarLinha(i);
+  if (id === 'cHora') c.itens.forEach(atualizarLinha);
   atualizarStatus();
 });
 document.addEventListener('change', function(e){
