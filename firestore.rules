@@ -117,7 +117,7 @@ service cloud.firestore {
 
     // somun hub (25/11): quem administra o somun (a conta dela e a conta do somun).
     function dona() {
-      return request.auth != null && request.auth.uid in ['Gjut8HQr4dbmeLRNdLZkvCgRT8e2', 'UID_DA_CONTA_DO_SOMUN'];
+      return request.auth != null && request.auth.uid in ['Gjut8HQr4dbmeLRNdLZkvCgRT8e2', 'ggQHVFAQBzfUP9WtHDvu39o8sVn2'];
     }
 
     // Sinal de vida: cada conta grava só o próprio documento (quando usou o live, o tela e o Diretor,
