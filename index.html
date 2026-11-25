@@ -760,7 +760,7 @@ var relatos = {
   dona: function(){ return !!(nuvem.user && nuvem.user.uid === DONA_UID); },
   menu: function(x, y){
     var op = [{t: 'Relatar problema', f: function(){ window.somunRelatar && window.somunRelatar({app: 'diretor', conta: nuvem.user ? nuvem.user.email : ''}); }}];
-    if (relatos.dona()) op.push({t: 'Relatos (problemas enviados)', f: relatos.abrir});
+    // 25/11: a lista de relatos mudou para o painel somun hub (denysondetrano30.github.io/somun-hub)
     menu(x, y, op);
   },
   abrir: function(){
