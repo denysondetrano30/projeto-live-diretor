@@ -7,6 +7,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>somun cam</title>
+<meta name="apple-mobile-web-app-title" content="cam.">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
@@ -35,6 +38,11 @@ body.noar #ar{display:block}
 #msg div{max-width:440px}
 #msg h1{font-size:22px;font-weight:600;margin:0 0 10px}
 #msg p{font-size:16px;color:var(--gray2);margin:0;line-height:1.45}
+#dica{position:fixed;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom) + 16px);display:none;
+  background:#232323;border:1px solid #3A3A3A;border-radius:12px;padding:12px 14px;font-size:15px;line-height:1.4;
+  color:var(--text)}
+#dica.show{display:block}
+#dica small{display:block;color:var(--gray);font-size:13px;margin-top:4px}
 #msg button{margin-top:22px;background:#fff;color:#000;border:0;border-radius:10px;font:600 16px Outfit,system-ui,sans-serif;padding:12px 22px}
 </style>
 </head>
@@ -42,6 +50,7 @@ body.noar #ar{display:block}
 <video id="v" autoplay playsinline muted></video>
 <div id="ar"></div>
 <div id="top"><span class="word">cam<i></i></span><span id="nome"></span><span id="dot"></span></div>
+<div id="dica"><span id="dicaT"></span><small>Toque aqui para fechar.</small></div>
 <div id="msg"><div><h1 id="msgT"></h1><p id="msgP"></p><button id="msgB" hidden></button></div></div>
 <script src="../firebase-config.js"></script>
 <script type="module">
@@ -50,7 +59,12 @@ const { initializeApp } = await import(SDK + 'firebase-app.js');
 const F = await import(SDK + 'firebase-firestore.js');
 
 const $ = (id) => document.getElementById(id);
-const code = decodeURIComponent(location.hash.slice(1)).trim();
+// O celular lembra a última câmera: abrindo a página (ou o ícone) sem código, continua na mesma entrada.
+const guardar = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+const lembrar = (k) => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } };
+let code = decodeURIComponent(location.hash.slice(1)).trim();
+if (code) guardar('somun-cam-codigo', code);
+else if ((code = lembrar('somun-cam-codigo'))) history.replaceState(null, '', '#' + encodeURIComponent(code));
 let stream = null, pc = null, tentativa = 0, unsub = null, wake = null;
 
 function mensagem(titulo, texto, botao, acao) {
@@ -61,7 +75,29 @@ function mensagem(titulo, texto, botao, acao) {
   $('msg').classList.add('show');
 }
 function semMensagem() { $('msg').classList.remove('show'); }
-function ligado(sim) { $('dot').classList.toggle('on', sim); }
+function ligado(sim) { $('dot').classList.toggle('on', sim); if (sim) mostrarDica(); }
+
+// Tela cheia no primeiro toque (esconde a barra do navegador no Android; o iPhone não deixa site
+// nenhum fazer isso — lá o jeito é abrir pelo ícone da tela de início).
+document.addEventListener('click', () => {
+  const el = document.documentElement;
+  const pedir = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (pedir && !document.fullscreenElement && !document.webkitFullscreenElement) {
+    try { const p = pedir.call(el, { navigationUI: 'hide' }); if (p && p.catch) p.catch(() => {}); } catch (e) {}
+  }
+});
+
+// Uma vez só, depois de conectar: como pôr o ícone "cam." na tela de início (aí abre direto, sem QR).
+function mostrarDica() {
+  const instalado = window.navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+  if (instalado || lembrar('somun-cam-dica')) return;
+  const iphone = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  $('dicaT').textContent = iphone
+    ? 'Para abrir direto e sem a barra do navegador: toque em Compartilhar e depois em "Adicionar à Tela de Início".'
+    : 'Para abrir direto e sem a barra do navegador: toque no menu ⋮ e depois em "Adicionar à tela inicial".';
+  $('dica').classList.add('show');
+  $('dica').onclick = () => { $('dica').classList.remove('show'); guardar('somun-cam-dica', '1'); };
+}
 
 if (!code) {
   mensagem('Leia o código no computador', 'Abra esta página pelo QR code que aparece na entrada "Celular sem app" do somun live.');
@@ -121,7 +157,7 @@ function ajustarOferta(sdp) {
     const m = linha.match(/^a=fmtp:(\d+) (.*)$/);
     if (!m || !h264.has(m[1])) return linha;
     let p = m[2].replace(/profile-level-id=([0-9a-f]{4})[0-9a-f]{2}/i, (_, perfil) => 'profile-level-id=' + perfil + '33');
-    if (!/x-google-max-bitrate/.test(p)) p += ';x-google-min-bitrate=8000;x-google-start-bitrate=12000;x-google-max-bitrate=20000';
+    if (!/x-google-max-bitrate/.test(p)) p += ';x-google-min-bitrate=6000;x-google-start-bitrate=12000;x-google-max-bitrate=20000';
     return 'a=fmtp:' + m[1] + ' ' + p;
   }).join('\r\n');
 }
