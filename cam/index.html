@@ -43,6 +43,9 @@ body.noar #ar{display:block}
   color:var(--text)}
 #dica.show{display:block}
 #dica small{display:block;color:var(--gray);font-size:13px;margin-top:4px}
+#relatar{position:fixed;right:calc(env(safe-area-inset-right) + 12px);bottom:calc(env(safe-area-inset-bottom) + 10px);
+  background:none;border:0;color:var(--gray);font:400 12px Outfit,system-ui,sans-serif;opacity:.7;padding:6px;z-index:5}
+body.noar #relatar{display:none}
 #msg button{margin-top:22px;background:#fff;color:#000;border:0;border-radius:10px;font:600 16px Outfit,system-ui,sans-serif;padding:12px 22px}
 </style>
 </head>
@@ -51,14 +54,18 @@ body.noar #ar{display:block}
 <div id="ar"></div>
 <div id="top"><span class="word">cam<i></i></span><span id="nome"></span><span id="dot"></span></div>
 <div id="dica"><span id="dicaT"></span><small>Toque aqui para fechar.</small></div>
+<button id="relatar" type="button">relatar problema</button>
 <div id="msg"><div><h1 id="msgT"></h1><p id="msgP"></p><button id="msgB" hidden></button></div></div>
 <script src="../firebase-config.js"></script>
+<script src="../relatar.js"></script>
 <script type="module">
 const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
 const { initializeApp } = await import(SDK + 'firebase-app.js');
 const F = await import(SDK + 'firebase-firestore.js');
 
 const $ = (id) => document.getElementById(id);
+// Relatar problema (25/11): o link pequeno embaixo (some no ar). A janela é a do relatar.js.
+$('relatar').addEventListener('click', (e) => { e.stopPropagation(); window.somunRelatar && window.somunRelatar({ app: 'cam' }); });
 // O celular lembra a última câmera: abrindo a página (ou o ícone) sem código, continua na mesma entrada.
 const guardar = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
 const lembrar = (k) => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } };

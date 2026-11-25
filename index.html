@@ -80,6 +80,13 @@ aside.editor{border-left:1px solid var(--line);padding:20px 18px;display:flex;fl
 .menu button.danger{color:#ffb4ad}
 .menu hr{border:0;border-top:1px solid var(--line2);margin:5px 4px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:12px 16px;z-index:60;max-width:min(520px,90vw);box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.live .wrap.rlWrap{display:flex;flex-direction:column;gap:12px;max-width:760px}
+.rlCard{background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.rlCard.feito{opacity:.6}
+.rlCab{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.rlTxt{white-space:pre-wrap;line-height:1.45}
+.rlPrint{max-width:100%;max-height:320px;border-radius:6px;border:1px solid var(--line2)}
+.rlLog{white-space:pre-wrap;word-break:break-all;font-size:11px;max-height:300px;overflow:auto;background:var(--bg);padding:8px;border-radius:6px;color:var(--muted)}
 .dialogBg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px}
 .dialog{background:var(--panel2);border:1px solid var(--line2);border-radius:12px;padding:20px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:14px}
 .dialog .row{display:flex;gap:10px;justify-content:flex-end}
@@ -271,6 +278,8 @@ aside.editor{border-left:1px solid var(--line);padding:20px 18px;display:flex;fl
 <body>
 <!-- Configuração do Firebase (só existe na página publicada no site; sem ela, modo de teste). -->
 <script src="firebase-config.js"></script>
+<!-- "Relatar problema" (o mesmo da somun cam no navegador). -->
+<script src="relatar.js"></script>
 <div class="app" id="app" data-view="cultos">
   <header class="top">
     <div class="brand"><span class="marca"><span>t</span><i></i></span><span class="nome">tamo</span></div>
@@ -279,6 +288,7 @@ aside.editor{border-left:1px solid var(--line);padding:20px 18px;display:flex;fl
     <div class="muted small" id="modeNote">Modo de teste: os dados ficam só neste navegador</div>
     <button class="btn small" id="btnPlano" style="display:none">Demandas</button>
     <button class="btn small" id="btnEquipe" style="display:none">Equipe</button>
+    <button class="btn small" id="btnMais" aria-label="Mais opções">⋯</button>
     <button class="btn link small" id="sair" style="display:none">Sair</button>
   </header>
   <div id="login" style="display:none;flex:1;align-items:center;justify-content:center;padding:20px">
@@ -298,6 +308,7 @@ aside.editor{border-left:1px solid var(--line);padding:20px 18px;display:flex;fl
   </div>
   <section class="live" id="aovivo" style="display:none" aria-label="Culto ao vivo"></section>
   <section class="live" id="painel" style="display:none" aria-label="Equipe e escala"></section>
+  <section class="live" id="relatos" style="display:none" aria-label="Relatos de problema"></section>
   <section class="live" id="plano" style="display:none" aria-label="Planejamento"></section>
 </div>
 
@@ -428,7 +439,7 @@ function iniciarNuvem(cfg){
     document.getElementById('sair').addEventListener('click', function(){ A.signOut(nuvem.auth); });
     A.onAuthStateChanged(nuvem.auth, function(user){
       nuvem.user = user;
-      if (!user) { aoVivo.fechar(); banco.parar(); equipe.parar(); plano.parar(); db = {cultos: []}; ui.cultoId = null; ui.itemId = null; ui.eventoId = null; ui.tarefaId = null; ui.view = 'cultos'; telaLogin(true); document.getElementById('modeNote').textContent = ''; render(); return; }
+      if (!user) { relatos.fechar(); aoVivo.fechar(); banco.parar(); equipe.parar(); plano.parar(); db = {cultos: []}; ui.cultoId = null; ui.itemId = null; ui.eventoId = null; ui.tarefaId = null; ui.view = 'cultos'; telaLogin(true); document.getElementById('modeNote').textContent = ''; render(); return; }
       telaLogin(false); aviso('Carregando…');
       banco.ouvir(); equipe.ouvir(); plano.ouvir();
       F.getDocs(F.query(F.collection(nuvem.fs, 'cultos'), F.where('owner', '==', user.uid))).then(function(snap){
@@ -737,6 +748,71 @@ function moverItem(id, para){
   c.itens.splice(para, 0, it);
   salvar(); renderRoteiro(); renderEditor(); atualizarStatus();
 }
+
+/* ---------------- relatar problema e página "Relatos" (25/11) ---------------- */
+
+// A dona do somun: só a conta dela vê "Relatos" (as regras do Firestore também só deixam ela ler).
+var DONA_UID = 'Gjut8HQr4dbmeLRNdLZkvCgRT8e2';
+var relatos = {
+  lista: [], parar: null, mostrarResolvidos: false,
+  dona: function(){ return !!(nuvem.user && nuvem.user.uid === DONA_UID); },
+  menu: function(x, y){
+    var op = [{t: 'Relatar problema', f: function(){ window.somunRelatar && window.somunRelatar({app: 'diretor', conta: nuvem.user ? nuvem.user.email : ''}); }}];
+    if (relatos.dona()) op.push({t: 'Relatos (problemas enviados)', f: relatos.abrir});
+    menu(x, y, op);
+  },
+  abrir: function(){
+    if (!relatos.dona()) return;
+    var el = document.getElementById('relatos'); el.style.display = 'flex';
+    el.innerHTML = '<div class="bar"><button class="btn link" data-rl="fechar">‹ Voltar</button><span class="t">Relatos</span></div><div class="wrap"><div class="muted">Carregando…</div></div>';
+    var F = nuvem.m;
+    if (relatos.parar) relatos.parar();
+    relatos.parar = F.onSnapshot(F.collection(nuvem.fs, 'relatos'), function(snap){
+      var l = [];
+      snap.forEach(function(d){ var x = d.data(); x.id = d.id; l.push(x); });
+      l.sort(function(a, b){ return (b.em && b.em.toMillis ? b.em.toMillis() : 0) - (a.em && a.em.toMillis ? a.em.toMillis() : 0); });
+      relatos.lista = l; relatos.render();
+    }, function(err){ toast('Não deu para ler os relatos (' + (err && err.code || err) + ').'); });
+  },
+  fechar: function(){
+    if (relatos.parar) { relatos.parar(); relatos.parar = null; }
+    var el = document.getElementById('relatos'); el.style.display = 'none'; el.innerHTML = '';
+  },
+  render: function(){
+    var el = document.getElementById('relatos'); if (el.style.display === 'none') return;
+    var abertos = relatos.lista.filter(function(r){ return !r.resolvido; });
+    var feitos = relatos.lista.filter(function(r){ return r.resolvido; });
+    var nomes = {live: 'somun live', tela: 'somun tela', diretor: 'Diretor', cam: 'somun cam (navegador)'};
+    function card(r){
+      var quando = r.em && r.em.toDate ? r.em.toDate().toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}) : '';
+      return '<div class="rlCard' + (r.resolvido ? ' feito' : '') + '">' +
+        '<div class="rlCab"><b>' + esc(nomes[r.app] || r.app || '?') + '</b><span class="muted small">' + esc(quando) + (r.versao ? ' · versão ' + esc(r.versao) : '') + '</span></div>' +
+        '<div class="rlTxt">' + esc(r.texto || '') + '</div>' +
+        ((r.conta || r.contato) ? '<div class="muted small">' + esc([r.conta, r.contato].filter(Boolean).join(' · ')) + '</div>' : '') +
+        (r.print ? '<a href="' + esc(r.print) + '" target="_blank" rel="noopener"><img class="rlPrint" src="' + esc(r.print) + '" alt="Print da tela"></a>' : '') +
+        '<details><summary class="muted small">Registro técnico</summary><pre class="rlLog">' + esc((r.sistema ? r.sistema + '\n\n' : '') + (r.registro || '')) + '</pre></details>' +
+        '<div class="row" style="justify-content:flex-end;gap:8px">' +
+        (r.resolvido ? '<button class="btn small" data-rl="reabrir" data-id="' + esc(r.id) + '">Reabrir</button>' : '<button class="btn small" data-rl="resolvido" data-id="' + esc(r.id) + '">Resolvido</button>') +
+        '<button class="btn link small" data-rl="apagar" data-id="' + esc(r.id) + '">Apagar</button></div></div>';
+    }
+    var h = '<div class="bar"><button class="btn link" data-rl="fechar">‹ Voltar</button><span class="t">Relatos · ' + abertos.length + ' aberto' + (abertos.length === 1 ? '' : 's') + '</span></div><div class="wrap rlWrap">';
+    h += abertos.length ? abertos.map(card).join('') : '<div class="empty">Nenhum problema aberto.</div>';
+    if (feitos.length) {
+      h += '<button class="btn link" data-rl="vertodos">' + (relatos.mostrarResolvidos ? 'Esconder' : 'Ver') + ' os resolvidos (' + feitos.length + ')</button>';
+      if (relatos.mostrarResolvidos) h += feitos.map(card).join('');
+    }
+    el.innerHTML = h + '</div>';
+  },
+  clique: function(t){
+    var b = t.closest('[data-rl]'); if (!b) return false;
+    var a = b.dataset.rl, F = nuvem.m;
+    if (a === 'fechar') relatos.fechar();
+    else if (a === 'vertodos') { relatos.mostrarResolvidos = !relatos.mostrarResolvidos; relatos.render(); }
+    else if (a === 'resolvido' || a === 'reabrir') F.updateDoc(F.doc(nuvem.fs, 'relatos', b.dataset.id), {resolvido: a === 'resolvido'}).catch(function(e){ toast('Não deu (' + (e && e.code || e) + ').'); });
+    else if (a === 'apagar') dialogo('Apagar este relato?', 'Some de vez da lista.', 'Apagar', function(){ F.deleteDoc(F.doc(nuvem.fs, 'relatos', b.dataset.id)); });
+    return true;
+  }
+};
 
 /* ---------------- menus, avisos ---------------- */
 
@@ -1837,6 +1913,8 @@ document.addEventListener('click', function(e){
   if (t.closest('[data-aovivo]')) return aoVivo.abrir();
   if (t.closest('[data-escala]')) return equipe.abrir('escala');
   if (t.id === 'btnEquipe') return equipe.abrir('equipe');
+  if (t.id === 'btnMais') { var rb = t.getBoundingClientRect(); return relatos.menu(rb.left, rb.bottom + 6); }
+  if (relatos.clique(t)) return;
   if (t.closest('#btnPlano')) return plano.abrir('quadro');
   if (plano.clique(t)) return;
   if (equipe.clique(t)) return;
