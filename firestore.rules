@@ -112,7 +112,25 @@ service cloud.firestore {
         && (!('sistema' in request.resource.data) || (request.resource.data.sistema is string && request.resource.data.sistema.size() <= 600))
         && (!('registro' in request.resource.data) || (request.resource.data.registro is string && request.resource.data.registro.size() <= 60000))
         && (!('print' in request.resource.data) || (request.resource.data.print is string && request.resource.data.print.size() <= 800000));
-      allow read, update, delete: if request.auth != null && request.auth.uid == 'Gjut8HQr4dbmeLRNdLZkvCgRT8e2';
+      allow read, update, delete: if dona();
+    }
+
+    // somun hub (25/11): quem administra o somun (a conta dela e a conta do somun).
+    function dona() {
+      return request.auth != null && request.auth.uid in ['Gjut8HQr4dbmeLRNdLZkvCgRT8e2', 'UID_DA_CONTA_DO_SOMUN'];
+    }
+
+    // Sinal de vida: cada conta grava só o próprio documento (quando usou o live, o tela e o Diretor,
+    // e a versão instalada). Só a administração lê (painel somun hub).
+    match /sinais/{uid} {
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['email', 'live', 'tela', 'diretor']);
+      allow read: if dona();
+    }
+
+    // Anotações da administração sobre cada igreja (painel somun hub).
+    match /hubNotas/{uid} {
+      allow read, write: if dona();
     }
 
         // Preferências de cada conta (as respostas prontas do diretor).

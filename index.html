@@ -441,6 +441,8 @@ function iniciarNuvem(cfg){
       nuvem.user = user;
       if (!user) { relatos.fechar(); aoVivo.fechar(); banco.parar(); equipe.parar(); plano.parar(); db = {cultos: []}; ui.cultoId = null; ui.itemId = null; ui.eventoId = null; ui.tarefaId = null; ui.view = 'cultos'; telaLogin(true); document.getElementById('modeNote').textContent = ''; render(); return; }
       telaLogin(false); aviso('Carregando…');
+      // somun hub (25/11): sinal de vida do Diretor (quando foi usado), para o painel de administração
+      F.setDoc(F.doc(nuvem.fs, 'sinais', user.uid), {email: user.email || '', diretor: {em: F.serverTimestamp()}}, {merge: true}).catch(function(){});
       banco.ouvir(); equipe.ouvir(); plano.ouvir();
       F.getDocs(F.query(F.collection(nuvem.fs, 'cultos'), F.where('owner', '==', user.uid))).then(function(snap){
         var lista = [];
