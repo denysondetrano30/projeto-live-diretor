@@ -88,6 +88,15 @@ aside.editor{border-left:1px solid var(--line);padding:20px 18px;display:flex;fl
 .rlPrint{max-width:100%;max-height:320px;border-radius:6px;border:1px solid var(--line2)}
 .rlLog{white-space:pre-wrap;word-break:break-all;font-size:11px;max-height:300px;overflow:auto;background:var(--bg);padding:8px;border-radius:6px;color:var(--muted)}
 .dialogBg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px}
+.dialog.conf{max-width:480px;max-height:85vh;overflow:auto}
+.cfList{display:flex;flex-direction:column;gap:2px}
+.cfRow{display:flex;align-items:flex-start;gap:10px;padding:7px 4px;border-radius:8px;text-align:left;line-height:1.4;font:inherit;color:var(--text);background:none;border:0;width:100%}
+button.cfRow{cursor:pointer}button.cfRow:hover{background:var(--line)}
+label.cfRow{cursor:pointer}label.cfRow input{margin:3px 0 0;width:16px;height:16px;flex:0 0 auto}
+.cfMark{flex:0 0 18px;height:18px;border-radius:50%;border:1.5px solid var(--line2);display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;margin-top:1px}
+.cfMark.ok{background:#F2F2F2;border-color:#F2F2F2;color:#141414}
+.cfMark.falta{border-color:#A8A8A8}
+.cfMark.neutro{border:0;color:var(--muted)}
 .dialog{background:var(--panel2);border:1px solid var(--line2);border-radius:12px;padding:20px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:14px}
 .dialog .row{display:flex;gap:10px;justify-content:flex-end}
 .back{display:none}
@@ -393,7 +402,7 @@ var nuvem = {
     nuvem.timers[id] = setTimeout(function(){ nuvem.enviar(id); }, 700);
   },
   dados: function(c){
-    return {owner: nuvem.user.uid, nome: c.nome || '', data: c.data || '', hora: c.hora || '', itens: c.itens, ultima: ultima(c) || null, atualizadoEm: new Date().toISOString()};
+    return {owner: nuvem.user.uid, nome: c.nome || '', data: c.data || '', hora: c.hora || '', itens: c.itens, conferido: c.conferido || {}, ultima: ultima(c) || null, atualizadoEm: new Date().toISOString()};
   },
   enviar: function(id, depois){
     var c = db.cultos.find(function(k){ return k.id === id; }); if (!c || !nuvem.user) return;
@@ -443,12 +452,12 @@ function iniciarNuvem(cfg){
       telaLogin(false); aviso('Carregando…');
       // somun hub (25/11): sinal de vida do Diretor (quando foi usado), para o painel de administração
       F.setDoc(F.doc(nuvem.fs, 'sinais', user.uid), {email: user.email || '', diretor: {em: F.serverTimestamp()}}, {merge: true}).catch(function(){});
-      banco.ouvir(); equipe.ouvir(); plano.ouvir();
+      banco.ouvir(); equipe.ouvir(); plano.ouvir(); conf.carregar();
       F.getDocs(F.query(F.collection(nuvem.fs, 'cultos'), F.where('owner', '==', user.uid))).then(function(snap){
         var lista = [];
         snap.forEach(function(d){
           var x = d.data();
-          lista.push({id: d.id, nome: x.nome || '', data: x.data || '', hora: x.hora || '', itens: x.itens || [], versoes: x.ultima ? [x.ultima] : []});
+          lista.push({id: d.id, nome: x.nome || '', data: x.data || '', hora: x.hora || '', itens: x.itens || [], conferido: x.conferido || {}, versoes: x.ultima ? [x.ultima] : []});
         });
         var teste = null;
         try { teste = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
@@ -588,6 +597,7 @@ function renderRoteiro(){
     '<input class="titleIn" id="cNome" aria-label="Nome do culto" value="' + esc(c.nome) + '" placeholder="Nome do culto">' +
     '<div class="when"><input type="date" id="cData" aria-label="Data" value="' + esc(c.data) + '"><input type="time" id="cHora" aria-label="Hora" value="' + esc(c.hora) + '"></div></div>' +
     '<div class="status" id="status"><span class="dot" style="background:' + s.cor + '"></span><span>' + esc(s.texto) + '</span></div>' +
+    '<button class="btn headPub" data-conferir style="min-height:44px" title="O que falta antes do culto">' + conf.rotulo(c) + '</button>' +
     (nuvem.user ? '<button class="btn headPub" data-escala style="min-height:44px">Escala</button>' : '') +
     (nuvem.user && ultima(c) ? '<button class="btn headPub" data-aovivo style="min-height:44px"><span class="dot" style="background:var(--red);margin-right:6px"></span>Ao vivo</button>' : '') +
     (ultima(c) ? '<button class="btn headPub" data-copiar style="min-height:44px" title="Copia a última versão publicada para colar na Projeção">Copiar para a Projeção</button>' : '') +
@@ -606,7 +616,7 @@ function renderRoteiro(){
   if (!c.itens.length) h += '<div class="empty small">Roteiro vazio. Adicione a primeira música, leitura, imagem ou vídeo.</div>';
   h += '<div><button class="btn ghost" id="addItem" style="min-height:44px">+ Adicionar ao roteiro</button></div>';
   if (nuvem.user) h += plano.htmlTarefas('culto', c.id);
-  h += '<div class="pubBar">' + (nuvem.user ? '<button class="btn" data-escala style="flex:0 0 auto">Escala</button>' : '') + (nuvem.user && ultima(c) ? '<button class="btn" data-aovivo style="flex:0 0 auto">Ao vivo</button>' : (ultima(c) ? '<button class="btn" data-copiar style="flex:0 0 auto">Copiar</button>' : '')) + '<button class="btn primary" data-publicar ' + (mudou(c) ? '' : 'disabled') + '>Publicar v' + proxima + '</button></div>';
+  h += '<div class="pubBar"><button class="btn" data-conferir style="flex:0 0 auto">' + conf.rotulo(c) + '</button>' + (nuvem.user ? '<button class="btn" data-escala style="flex:0 0 auto">Escala</button>' : '') + (nuvem.user && ultima(c) ? '<button class="btn" data-aovivo style="flex:0 0 auto">Ao vivo</button>' : (ultima(c) ? '<button class="btn" data-copiar style="flex:0 0 auto">Copiar</button>' : '')) + '<button class="btn primary" data-publicar ' + (mudou(c) ? '' : 'disabled') + '>Publicar v' + proxima + '</button></div>';
   el.innerHTML = h;
 }
 
@@ -617,6 +627,7 @@ function atualizarStatus(){
   if (st) st.innerHTML = '<span class="dot" style="background:' + s.cor + '"></span><span>' + esc(s.texto) + '</span>';
   var proxima = (ultima(c) ? ultima(c).n : 0) + 1;
   document.querySelectorAll('[data-publicar]').forEach(function(b){ b.disabled = !mudou(c); b.textContent = 'Publicar v' + proxima; });
+  conf.atualizarBotao();
   renderCultos();
 }
 function atualizarLinha(i){
@@ -651,6 +662,7 @@ function renderEditor(){
     h += '<div class="field"><label for="iLink">Link do arquivo no Google Drive</label><input id="iLink" inputmode="url" value="' + esc(i.link) + '" placeholder="https://drive.google.com/file/d/...">' +
       '<div class="msg" id="linkMsg"></div>' +
       '<div class="msg muted">No Drive: botão direito no arquivo › Compartilhar › Acesso geral: <b>Qualquer pessoa com o link</b>. Sem isso a Projeção não consegue baixar.</div></div>';
+    if (i.destino === 'midia') h += '<div class="field"><label for="iVertical">Versão vertical (em pé, para a transmissão vertical) · link do Drive</label><input id="iVertical" inputmode="url" value="' + esc(i.vertical || '') + '" placeholder="https://drive.google.com/file/d/..."><div class="msg" id="verticalMsg"></div></div>';
   }
   if (i.tipo === 'musica') {
     var busca = 'https://www.cifraclub.com.br/?q=' + encodeURIComponent(((i.titulo || '') + ' ' + (i.artista || '')).trim());
@@ -660,12 +672,18 @@ function renderEditor(){
   }
   h += '<div class="field"><label for="iObs">Observação para o operador</label><input id="iObs" value="' + esc(i.obs) + '" placeholder="Ex.: repetir o refrão no fim"></div>';
   el.innerHTML = h;
-  mostrarSlides(i); mostrarLink(i);
+  mostrarSlides(i); mostrarLink(i); mostrarVertical(i);
   if (i.tipo === 'musica' && nuvem.user) banco.buscar(i);
 }
 function mostrarSlides(i){
   var n = document.getElementById('nSlides'); if (!n) return;
   var k = slides(i.letra); n.textContent = k ? '(' + k + (k === 1 ? ' slide)' : ' slides)') : '';
+}
+function mostrarVertical(i){
+  var m = document.getElementById('verticalMsg'); if (!m) return;
+  var d = lerDrive(i.vertical);
+  var t = {vazio: ['warn', 'Sem a versão vertical, a conferência avisa.'], ok: ['ok', 'Arquivo do Drive reconhecido.'], pasta: ['bad', 'Isso é o link de uma pasta. Abra o arquivo e copie o link dele.'], naoDrive: ['bad', 'Não parece um link de arquivo do Google Drive.']}[d.estado];
+  m.className = 'msg ' + t[0]; m.textContent = t[1];
 }
 function mostrarLink(i){
   var m = document.getElementById('linkMsg'); if (!m) return;
@@ -1117,6 +1135,139 @@ var banco = {
     });
   }
 };
+
+/* ---------------- conferência antes do culto (decidida com ela em 26/11) ----------------
+ * Botão "Conferir" no topo do culto. Confere sozinho: letras e arquivos de cada item, versão vertical
+ * das imagens e vídeos que vão para a live (destino "midia"), se a última mudança foi publicada e,
+ * no dia do culto, se o somun live e o somun tela já foram abertos (sinais/<conta>, o sinal de vida).
+ * Mais a lista da própria igreja (perfis/<conta>.conferencia, uma linha por item), marcada à mão em
+ * cada culto (c.conferido = {texto: true}, guardado junto do culto). */
+var conf = {
+  lista: [], sinal: null, aberto: false,
+  carregar: function(){
+    if (!nuvem.user) return;
+    var F = nuvem.m, fs = nuvem.fs, u = nuvem.user.uid;
+    F.getDoc(F.doc(fs, 'perfis', u)).then(function(d){
+      var x = d.exists() ? d.data() : {};
+      conf.lista = Array.isArray(x.conferencia) ? x.conferencia : [];
+      conf.atualizarBotao();
+    }, function(){});
+    conf.lerSinal();
+  },
+  lerSinal: function(depois){
+    if (!nuvem.user) return;
+    var F = nuvem.m;
+    F.getDoc(F.doc(nuvem.fs, 'sinais', nuvem.user.uid)).then(function(d){
+      conf.sinal = d.exists() ? d.data() : {};
+      conf.atualizarBotao(); if (depois) depois();
+    }, function(){ conf.sinal = null; if (depois) depois(); });
+  },
+  hoje: function(ts){
+    var d = ts && ts.toDate ? ts.toDate() : (typeof ts === 'string' ? new Date(ts) : null);
+    return !!d && !isNaN(d) && d.toDateString() === new Date().toDateString();
+  },
+  /* [{texto, ok, item?, mao?, neutro?}] — neutro = só informação, não conta como pendente */
+  itens: function(c){
+    var l = [], faltas = [], verticais = [], temLive = false;
+    c.itens.forEach(function(i, k){
+      var nome = 'Item ' + (k + 1) + ' · ' + (i.titulo || TIPOS[i.tipo].nome);
+      if (i.tipo === 'imagem' || i.tipo === 'video') {
+        if (lerDrive(i.link).estado !== 'ok') faltas.push({texto: nome + ': falta o arquivo', ok: false, item: i.id});
+        if (i.destino === 'midia') {
+          temLive = true;
+          if (lerDrive(i.vertical).estado !== 'ok') verticais.push({texto: nome + ': falta a versão vertical', ok: false, item: i.id});
+        }
+      } else if (i.tipo === 'texto' && !(i.letra || '').trim()) {
+        faltas.push({texto: nome + ': falta o texto', ok: false, item: i.id});
+      } else if (i.tipo === 'musica' && !i.musicaId && !(i.letra || '').trim()) {
+        faltas.push({texto: nome + ': sem letra (a Projeção procura pelo título na biblioteca dela)', ok: false, item: i.id});
+      }
+    });
+    if (!c.itens.length) l.push({texto: 'Roteiro vazio', ok: false});
+    else l = l.concat(faltas.length ? faltas : [{texto: 'Letras e arquivos completos', ok: true}]);
+    if (temLive) l = l.concat(verticais.length ? verticais : [{texto: 'Versões verticais completas', ok: true}]);
+    var u = ultima(c);
+    if (!u) l.push({texto: 'Ainda não foi publicado para a Projeção', ok: false});
+    else if (mudou(c)) l.push({texto: 'Mudou depois da v' + u.n + ': falta publicar', ok: false});
+    else l.push({texto: 'Publicado para a Projeção (v' + u.n + ')', ok: true});
+    if (nuvem.user) {
+      if (c.data !== hojeISO()) l.push({texto: 'No dia do culto, confere aqui se o somun live e o somun tela foram abertos', neutro: true});
+      else if (!conf.sinal) l.push({texto: 'Não deu para ver se o somun live e o somun tela foram abertos hoje', neutro: true});
+      else {
+        l.push(conf.hoje(conf.sinal.live && conf.sinal.live.em) ? {texto: 'somun live aberto hoje', ok: true} : {texto: 'somun live ainda não foi aberto hoje', ok: false});
+        l.push(conf.hoje(conf.sinal.tela && conf.sinal.tela.em) ? {texto: 'somun tela aberto hoje', ok: true} : {texto: 'somun tela ainda não foi aberto hoje', ok: false});
+      }
+    }
+    var marcados = c.conferido || {};
+    conf.lista.forEach(function(t){ l.push({texto: t, ok: !!marcados[t], mao: true}); });
+    return l;
+  },
+  faltam: function(c){ return conf.itens(c).filter(function(x){ return !x.neutro && !x.ok; }).length; },
+  rotulo: function(c){ var n = conf.faltam(c); return n ? 'Conferir · ' + n : 'Conferido ✓'; },
+  atualizarBotao: function(){
+    var c = culto(); if (!c) return;
+    var t = conf.rotulo(c);
+    document.querySelectorAll('[data-conferir]').forEach(function(b){ b.textContent = t; });
+    if (conf.aberto) conf.desenhar();
+  },
+  abrir: function(){
+    var c = culto(); if (!c) return;
+    conf.fechar();
+    var bg = document.createElement('div'); bg.className = 'dialogBg'; bg.id = 'confBg';
+    bg.innerHTML = '<div class="dialog conf" role="dialog" aria-modal="true" aria-label="Conferência antes do culto"></div>';
+    document.body.appendChild(bg);
+    bg.addEventListener('click', function(e){ if (e.target === bg) conf.fechar(); });
+    conf.aberto = true; conf.editando = false;
+    conf.desenhar();
+    conf.lerSinal();
+  },
+  fechar: function(){ var bg = document.getElementById('confBg'); if (bg) bg.remove(); conf.aberto = false; },
+  desenhar: function(){
+    var c = culto(), box = document.querySelector('#confBg .dialog'); if (!c || !box) return;
+    var l = conf.itens(c), auto = l.filter(function(x){ return !x.mao; }), mao = l.filter(function(x){ return x.mao; });
+    var marca = function(x){ return '<span class="cfMark ' + (x.neutro ? 'neutro' : x.ok ? 'ok' : 'falta') + '" aria-hidden="true">' + (x.neutro ? '·' : x.ok ? '✓' : '') + '</span>'; };
+    var h = '<div style="display:flex;align-items:center;gap:8px"><div style="font-weight:700;font-size:16px;flex:1">Conferência · ' + esc(c.nome || 'Culto') + '</div><button class="btn link" data-cf="fechar" aria-label="Fechar">✕</button></div>';
+    h += '<div class="cfList">' + auto.map(function(x){
+      return x.item ? '<button class="cfRow link" data-cf="item" data-id="' + x.item + '">' + marca(x) + '<span>' + esc(x.texto) + '</span></button>'
+                    : '<div class="cfRow' + (x.neutro ? ' muted' : '') + '">' + marca(x) + '<span>' + esc(x.texto) + '</span></div>';
+    }).join('') + '</div>';
+    if (nuvem.user) {
+      h += '<div class="muted small" style="letter-spacing:.5px;display:flex;align-items:center;gap:8px"><span style="flex:1">DA IGREJA</span><button class="btn link small" data-cf="editar">' + (conf.editando ? 'Pronto' : (conf.lista.length ? 'Mudar a lista' : 'Criar a lista')) + '</button></div>';
+      if (conf.editando) {
+        h += '<textarea id="cfLista" style="min-height:140px" placeholder="Uma coisa por linha. Ex.:\nPilhas dos microfones\nSom testado com a banda\nCâmeras carregadas">' + esc(conf.lista.join('\n')) + '</textarea>';
+      } else if (!mao.length) {
+        h += '<div class="muted small">Coisas que a sua igreja sempre confere (pilhas, som, câmeras...). Escreva uma vez e marque em cada culto.</div>';
+      } else {
+        h += '<div class="cfList">' + mao.map(function(x){
+          return '<label class="cfRow"><input type="checkbox" data-cf-mao="' + esc(x.texto) + '"' + (x.ok ? ' checked' : '') + '><span>' + esc(x.texto) + '</span></label>';
+        }).join('') + '</div>';
+      }
+    }
+    box.innerHTML = h;
+  },
+  salvarLista: function(){
+    var ta = document.getElementById('cfLista'); if (!ta) return;
+    var nova = ta.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean)
+      .filter(function(s, k, a){ return a.indexOf(s) === k; }).slice(0, 60);
+    conf.lista = nova;
+    equipe.perfil({conferencia: nova});
+  }
+};
+document.addEventListener('click', function(e){
+  var b = e.target.closest('[data-cf]'); if (!b || !conf.aberto) return;
+  var a = b.dataset.cf;
+  if (a === 'fechar') conf.fechar();
+  else if (a === 'editar') { if (conf.editando) conf.salvarLista(); conf.editando = !conf.editando; conf.desenhar(); conf.atualizarBotao(); var ta = document.getElementById('cfLista'); if (ta) ta.focus(); }
+  else if (a === 'item') { conf.fechar(); ui.itemId = b.dataset.id; ui.tarefaId = null; ui.view = 'item'; render(); }
+});
+document.addEventListener('change', function(e){
+  var t = e.target; if (!t.dataset || t.dataset.cfMao === undefined) return;
+  var c = culto(); if (!c) return;
+  c.conferido = Object.assign({}, c.conferido || {});
+  if (t.checked) c.conferido[t.dataset.cfMao] = true; else delete c.conferido[t.dataset.cfMao];
+  salvar(); conf.atualizarBotao();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && conf.aberto) conf.fechar(); });
 
 /* ---------------- equipe e escala (só equipe de mídia; decisões de 15/11) ----------------
  * equipe/<código>: uma pessoa {owner, nome, whatsapp, funcoes[], indisponivel[datas],
@@ -1913,6 +2064,7 @@ document.addEventListener('click', function(e){
   if (t.closest('[data-publicar]')) return publicar();
   if (t.closest('[data-copiar]')) return copiarParaProjecao();
   if (t.closest('[data-aovivo]')) return aoVivo.abrir();
+  if (t.closest('[data-conferir]')) return conf.abrir();
   if (t.closest('[data-escala]')) return equipe.abrir('escala');
   if (t.id === 'btnEquipe') return equipe.abrir('equipe');
   if (t.id === 'btnMais') { var rb = t.getBoundingClientRect(); return relatos.menu(rb.left, rb.bottom + 6); }
@@ -1966,6 +2118,7 @@ document.addEventListener('input', function(e){
   else if (i && id === 'iTitulo') i.titulo = e.target.value;
   else if (i && id === 'iLetra') { i.letra = e.target.value; mostrarSlides(i); }
   else if (i && id === 'iLink') { i.link = e.target.value.trim(); mostrarLink(i); }
+  else if (i && id === 'iVertical') { i.vertical = e.target.value.trim(); mostrarVertical(i); }
   else if (i && id === 'iObs') i.obs = e.target.value;
   else if (i && id === 'iMin') { var m = parseInt(e.target.value, 10); if (m > 0) i.min = Math.min(m, 600); else delete i.min; salvar(); c.itens.forEach(atualizarLinha); atualizarStatus(); return; }
   else if (i && id === 'iCifra') i.cifra = e.target.value;
@@ -1979,7 +2132,7 @@ document.addEventListener('change', function(e){
   if (e.target.dataset && (e.target.dataset.vaga || e.target.dataset.eqcampo)) return equipe.mudanca(e.target);
   if (e.target.dataset && plano.mudanca(e.target)) return;
   var i = item();
-  if (i && e.target.id === 'iDestino') { i.destino = e.target.value; salvar(); atualizarLinha(i); atualizarStatus(); }
+  if (i && e.target.id === 'iDestino') { i.destino = e.target.value; salvar(); atualizarLinha(i); atualizarStatus(); if (i.tipo === 'imagem' || i.tipo === 'video') renderEditor(); }
 });
 
 document.addEventListener('submit', function(e){

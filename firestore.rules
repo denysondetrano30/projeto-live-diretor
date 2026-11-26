@@ -121,11 +121,12 @@ service cloud.firestore {
     }
 
     // Sinal de vida: cada conta grava só o próprio documento (quando usou o live, o tela e o Diretor,
-    // e a versão instalada). Só a administração lê (painel somun hub).
+    // e a versão instalada). A administração lê todos (painel somun hub); cada conta lê o seu (a
+    // conferência antes do culto, no Diretor, vê se o live e o tela foram abertos hoje).
     match /sinais/{uid} {
       allow create, update: if request.auth != null && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['email', 'live', 'tela', 'diretor']);
-      allow read: if dona();
+      allow read: if dona() || (request.auth != null && request.auth.uid == uid);
     }
 
     // Anotações da administração sobre cada igreja (painel somun hub).
