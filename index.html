@@ -141,6 +141,26 @@ label.cfRow{cursor:pointer}label.cfRow input{margin:3px 0 0;width:16px;height:16
 .eqRow{display:grid;grid-template-columns:minmax(140px,1.2fr) minmax(130px,1fr) minmax(0,2fr) auto;gap:10px;align-items:center;border-top:1px solid var(--line);padding:10px 0}
 .eqRow input{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:8px 10px;width:100%;min-height:40px}
 .fchips{display:flex;flex-wrap:wrap;gap:6px}
+/* menu do Diretor (na conta) */
+.app.logado header.top{display:none}
+.app.logado nav.cultos{padding:14px 10px 12px;gap:2px}
+.navLogo{padding:2px 10px 14px;font-size:24px}
+.navItem{display:flex;align-items:center;gap:10px;width:100%;background:transparent;border:1px solid transparent;border-radius:8px;padding:9px 10px;text-align:left;font-weight:600;color:var(--text)}
+.navItem:hover{background:var(--panel)}
+.navItem.on{background:var(--panel2);border-color:var(--line2)}
+.navIc{display:flex;color:var(--muted)}
+.navItem.on .navIc{color:var(--text)}
+.navNome{flex:1}
+.navN{background:var(--line2);border-radius:10px;padding:1px 7px;font-size:12px}
+.navSub{display:flex;flex-direction:column;gap:1px;margin:0 0 6px 18px;padding-left:8px;border-left:1px solid var(--line)}
+.navSub .culto{padding:6px 9px}
+.navSub .culto .t{font-size:13px}
+.navSub .culto .s{font-size:11px}
+.navNovo{background:transparent;border:0;color:var(--muted);text-align:left;padding:6px 9px;border-radius:8px;font-size:13px}
+.navNovo:hover{color:var(--text);background:var(--panel)}
+.navPe{border-top:1px solid var(--line);padding-top:10px;margin-top:10px;display:flex;flex-direction:column;gap:4px}
+.navConta{padding:0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.navAcoes{display:flex;gap:4px;justify-content:space-between;padding:0 4px}
 /* tela de início */
 .cols.inicio{grid-template-columns:260px 1fr}
 .cols.inicio aside.editor{display:none}
@@ -320,7 +340,7 @@ label.cfRow{cursor:pointer}label.cfRow input{margin:3px 0 0;width:16px;height:16
     <div class="brand" title="somun Diretor" aria-label="somun Diretor"><span class="nome">un<i></i></span></div>
     <div style="flex:1"></div>
     <div class="muted small" id="modeNote">Modo de teste: os dados ficam só neste navegador</div>
-    <button class="btn small" id="btnPlano" style="display:none">Demandas</button>
+    <button class="btn small" id="btnPlano" style="display:none">Produção</button>
     <button class="btn small" id="btnEquipe" style="display:none">Equipe</button>
     <button class="btn small" id="btnMais" aria-label="Mais opções">⋯</button>
     <button class="btn link small" id="sair" style="display:none">Sair</button>
@@ -443,9 +463,10 @@ var nuvem = {
     nuvem.m.deleteDoc(nuvem.m.doc(nuvem.fs, 'cultos', id)).catch(function(e){ console.warn(e); });
   }
 };
-function aviso(t){ var n = document.getElementById('modeNote'); if (n && nuvem.user) n.textContent = nuvem.user.email + ' · ' + t; }
+function aviso(t){ var n = document.getElementById('modeNote'); if (n && nuvem.user) n.textContent = nuvem.user.email + ' · ' + t; var m = document.getElementById('navConta'); if (m && n) m.textContent = n.textContent; }
 
 function telaLogin(mostrar){
+  document.getElementById('app').classList.toggle('logado', !mostrar);
   document.getElementById('login').style.display = mostrar ? 'flex' : 'none';
   document.querySelector('.cols').style.display = mostrar ? 'none' : '';
   document.getElementById('sair').style.display = mostrar ? 'none' : '';
@@ -572,7 +593,7 @@ function render(){
   document.getElementById('app').dataset.view = ui.view;
   var casa = emInicio();
   /* Na tela de início o painel do meio ocupa também a coluna da direita (menos com uma tarefa aberta). */
-  document.querySelector('.cols').classList.toggle('inicio', casa && !ui.tarefaId);
+  document.querySelector('.cols').classList.toggle('inicio', (casa || (nuvem.user && ui.eventoId === 'fixos_' + nuvem.user.uid)) && !ui.tarefaId);
   renderCultos();
   if (ui.eventoId && nuvem.user) renderEvento(); else if (casa) renderInicio(); else renderRoteiro();
   renderEditor();
@@ -592,9 +613,12 @@ var inicio = {
   proximo: function(){
     var hoje = hojeISO();
     /* Culto de hoje deixa de ser o próximo 4 horas depois do horário (já aconteceu). */
-    var agora = new Date(), acabou = function(c){ return c.data === hoje && /^\d\d:\d\d$/.test(c.hora || '') && agora.getHours() * 60 + agora.getMinutes() > parseInt(c.hora.slice(0, 2), 10) * 60 + parseInt(c.hora.slice(3, 5), 10) + 240; };
-    return db.cultos.filter(function(c){ return c.data && c.data >= hoje && !acabou(c); })
+    return db.cultos.filter(function(c){ return c.data && c.data >= hoje && !inicio.acabou(c); })
       .sort(function(a, b){ return (a.data + (a.hora || '')).localeCompare(b.data + (b.hora || '')); })[0] || null;
+  },
+  acabou: function(c){
+    var agora = new Date();
+    return c.data === hojeISO() && /^\d\d:\d\d$/.test(c.hora || '') && agora.getHours() * 60 + agora.getMinutes() > parseInt(c.hora.slice(0, 2), 10) * 60 + parseInt(c.hora.slice(3, 5), 10) + 240;
   },
   anterior: function(){
     var hoje = hojeISO();
@@ -683,7 +707,7 @@ var inicio = {
   },
   vemAi: function(prox){
     var hoje = hojeISO(), ate = iso(new Date(Date.now() + 60 * 864e5)), linhas = [];
-    db.cultos.filter(function(c){ return c.data && c.data >= hoje && c.data <= ate && (!prox || c.id !== prox.id); })
+    db.cultos.filter(function(c){ return c.data && c.data >= hoje && c.data <= ate && !inicio.acabou(c) && (!prox || c.id !== prox.id); })
       .sort(function(a, b){ return a.data.localeCompare(b.data); }).slice(0, 3)
       .forEach(function(c){ linhas.push({data: c.data, html: '<button class="iniLinha" data-ini="culto" data-d="' + esc(c.id) + '"><span>' + esc(c.nome || 'Culto') + '</span><span class="muted">' + esc(c.data.slice(8, 10) + '/' + c.data.slice(5, 7)) + '</span></button>'}); });
     plano.eventos.forEach(function(ev){
@@ -714,7 +738,7 @@ var inicio = {
 };
 function renderInicio(){
   var el = document.getElementById('roteiro'), c = inicio.proximo();
-  var h = '<div class="ini" id="iniBox"><button class="btn link back" data-voltar="cultos" style="align-self:flex-start">‹ Agenda</button>';
+  var h = '<div class="ini" id="iniBox"><button class="btn link back" data-voltar="cultos" style="align-self:flex-start">‹ Menu</button>';
   if (!c) {
     h += '<div class="lblSec">Próximo culto</div><div class="iniVazio"><div style="font-size:19px;font-weight:700">Nenhum culto marcado</div>' +
       '<div class="muted small">Marque o próximo culto para montar o roteiro, a escala e as artes.</div><button class="btn primary" data-ini="novo" style="margin-top:10px">+ Novo culto</button></div>';
@@ -745,9 +769,7 @@ function renderCultos(){
   if (nuvem.user) plano.eventos.forEach(function(e){ if (!e.fixo) coisas.push({tipo: 'evento', x: e, data: e.inicio || '', ate: e.fim || e.inicio || ''}); });
   var prox = coisas.filter(function(k){ return !k.data || k.ate >= hoje; }).sort(function(a, b){ return (a.data || '9').localeCompare(b.data || '9'); });
   var ant = coisas.filter(function(k){ return k.data && k.ate < hoje; }).sort(function(a, b){ return b.data.localeCompare(a.data); });
-  var h = nuvem.user ?
-    '<div class="row" style="flex-wrap:nowrap"><button class="btn" data-pl="novo" style="flex:1;text-align:left;min-height:44px">+ Novo</button><button class="btn" data-pl="calendario" style="min-height:44px" title="Calendário do mês">Calendário</button></div>' :
-    '<button class="btn" id="novoCulto" style="text-align:left;min-height:44px">+ Novo culto</button>';
+  var h = nuvem.user ? '' : '<button class="btn" id="novoCulto" style="text-align:left;min-height:44px">+ Novo culto</button>';
   var linha = function(k){
     if (k.tipo === 'culto') {
       var c = k.x, nt = nuvem.user ? plano.pendentes(plano.tarefasDe('culto', c.id)) : 0;
@@ -761,13 +783,7 @@ function renderCultos(){
       '<div class="t"><span class="evTag">Evento</span>' + esc(e.nome) + '</div>' +
       '<div class="s">' + esc(dt) + (ab ? ' · ' + ab + ' tarefa' + (ab === 1 ? '' : 's') : '') + (ap ? ' · <span class="warnTxt">' + ap + ' para aprovar</span>' : '') + '</div></button>';
   };
-  if (nuvem.user) {
-    var nf = faltamInicio();
-    h += '<button class="culto' + (emInicio() ? ' on' : '') + '" data-ini="home"><div class="t">Início</div><div class="s">' + (nf ? nf + (nf === 1 ? ' coisa falta' : ' coisas faltam') : 'tudo em dia') + '</div></button>';
-    var fx = plano.fixos(), nfx = plano.materiais(fx).length;
-    h += '<button class="culto ev' + (fx.id === ui.eventoId ? ' on' : '') + '" data-evento="' + fx.id + '">' +
-      '<div class="t">Arquivos da igreja</div><div class="s">' + (nfx ? nfx + (nfx === 1 ? ' arquivo' : ' arquivos') : 'Abertura, célula, avisos que repetem') + '</div></button>';
-  }
+  if (nuvem.user) { el.innerHTML = menuDiretor(prox, ant, linha); if (emInicio() && document.getElementById('iniBox')) renderInicio(); return; }
   var mes = null;
   var bloco = function(l){ l.forEach(function(k){
     var d = parseData(k.data), m = d ? MESES[d.getMonth()] + ' ' + d.getFullYear() : 'sem data';
@@ -781,6 +797,40 @@ function renderCultos(){
   if (!coisas.length) h += '<div class="empty small">Nada na agenda ainda.<br>Comece em "+ Novo".</div>';
   el.innerHTML = h;
   if (emInicio() && document.getElementById('iniBox')) renderInicio();
+}
+
+/* Menu do Diretor (decidido 26/11): tudo num lugar só, sempre igual — Início, Cultos e eventos (com
+ * os próximos embaixo), Produção, Equipe e Arquivos da igreja; conta, "⋯" e Sair no pé. O topo some. */
+var MENU_IC = {
+  inicio: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4l8 7v8.5a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"/></svg>',
+  cultos: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+  producao: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="4" width="5" height="16" rx="1.5"/><rect x="9.5" y="4" width="5" height="11" rx="1.5"/><rect x="15.5" y="4" width="5" height="7" rx="1.5"/></svg>',
+  equipe: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.8-4.6 5.5-4.6s4.9 1.6 5.5 4.6"/><path d="M16 5.2a3 3 0 0 1 0 5.6M17.5 14.6c1.6.5 2.7 1.9 3 4.4"/></svg>',
+  arquivos: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>'
+};
+function menuDiretor(prox, ant, linha){
+  var nf = faltamInicio(), fx = plano.fixos();
+  var aprovar = plano.demandas.filter(function(d){ return plano.estado(d) === 'para_aprovar'; }).length;
+  var item = function(attrs, ic, nome, n, on){
+    return '<button class="navItem' + (on ? ' on' : '') + '" ' + attrs + '><span class="navIc">' + MENU_IC[ic] + '</span><span class="navNome">' + nome + '</span>' + (n ? '<span class="navN">' + n + '</span>' : '') + '</button>';
+  };
+  var h = '<div class="navLogo brand" title="Início"><span class="nome">un<i></i></span></div>';
+  h += item('data-ini="home"', 'inicio', 'Início', nf, emInicio());
+  h += item('data-pl="calendario"', 'cultos', 'Cultos e eventos', 0, !!ui.cultoId || (!!ui.eventoId && ui.eventoId !== fx.id));
+  h += '<div class="navSub"><button class="navNovo" data-pl="novo">+ Novo</button>';
+  prox.slice(0, 8).forEach(function(k){ h += linha(k); });
+  if (!prox.length) h += '<div class="muted small" style="padding:4px 10px">Nada marcado.</div>';
+  if (ant.length) {
+    h += '<button class="navNovo" data-nav="anteriores">' + (ui.verAnteriores ? '▾' : '▸') + ' Anteriores (' + ant.length + ')</button>';
+    if (ui.verAnteriores) ant.slice(0, 12).forEach(function(k){ h += linha(k); });
+  }
+  h += '</div>';
+  h += item('data-pl="quadro"', 'producao', 'Produção', aprovar, false);
+  h += item('data-nav="equipe"', 'equipe', 'Equipe', 0, false);
+  h += item('data-evento="' + fx.id + '"', 'arquivos', 'Arquivos da igreja', 0, ui.eventoId === fx.id);
+  h += '<div style="flex:1"></div><div class="navPe"><div class="muted small navConta" id="navConta">' + esc(document.getElementById('modeNote').textContent || (nuvem.user.email || '')) + '</div>' +
+    '<div class="navAcoes"><button class="btn link small" data-nav="mais" aria-label="Mais opções">⋯</button><button class="btn link small" data-nav="sair">Sair</button></div></div>';
+  return h;
 }
 
 function renderRoteiro(){
@@ -1789,7 +1839,7 @@ var plano = {
   pendentes: function(l){ return l.filter(function(d){ return plano.estado(d) !== 'pronto'; }).length; },
   contar: function(){
     var n = plano.demandas.filter(function(d){ return plano.estado(d) === 'para_aprovar'; }).length;
-    var b = document.getElementById('btnPlano'); if (b) b.innerHTML = 'Demandas' + (n ? '<span class="contador">' + n + '</span>' : '');
+    var b = document.getElementById('btnPlano'); if (b) b.innerHTML = 'Produção' + (n ? '<span class="contador">' + n + '</span>' : '');
   },
   salvarEvento: function(ev){
     var F = nuvem.m, dados = Object.assign({}, ev); delete dados.id; dados.owner = nuvem.user.uid;
@@ -1944,7 +1994,7 @@ var plano = {
   desenhar: function(){
     var el = document.getElementById('plano'); if (!el || !plano.aberto) return;
     var foco = document.activeElement && document.activeElement.id;
-    var h = '<div class="bar"><button class="btn link" data-pl="fechar">‹ Voltar</button><span class="t">' + (plano.aba === 'quadro' ? 'Demandas' : 'Calendário') + '</span><div class="abas">' +
+    var h = '<div class="bar"><button class="btn link" data-pl="fechar">‹ Voltar</button><span class="t">' + (plano.aba === 'quadro' ? 'Produção' : 'Calendário') + '</span><div class="abas">' +
       [['quadro', 'Quadro'], ['calendario', 'Calendário']].map(function(a){
         return '<button class="' + (plano.aba === a[0] ? 'on' : '') + '" data-pl="aba" data-a="' + a[0] + '">' + a[1] + '</button>'; }).join('') + '</div></div>';
     if (plano.erro) h += '<div class="msg bad" style="padding:12px 16px">Sem permissão: cole as regras novas (firestore.rules) no console do Firebase.</div>';
@@ -2077,6 +2127,7 @@ var plano = {
     else if (a === 'evento') { plano.fechar(); ui.eventoId = b.dataset.id; ui.cultoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; render(); }
     else if (a === 'tarefa') plano.abrirTarefa(b.dataset.id);
     else if (a === 'calendario') plano.abrir('calendario');
+    else if (a === 'quadro') plano.abrir('quadro');
     else if (a === 'novo') {
       var r = b.getBoundingClientRect();
       menu(r.left, r.bottom + 6, [{t: 'Culto', f: function(){ novoCulto(); }}, {t: 'Evento (acampamento, conferência…)', f: function(){ plano.novoEvento(''); }}]);
@@ -2087,7 +2138,7 @@ var plano = {
     else if (a === 'aprovar' && dd) plano.aprovar(dd);
     else if (a === 'ajuste' && dd) plano.pedirAjuste(dd);
     else if (a === 'usarDemanda' && dd) { var eu = plano.entrega(dd); if (eu && eu.url) plano.escolherCulto({titulo: dd.titulo, url: eu.url}); }
-    else if (a === 'apagarEvento' && ev) dialogo('Apagar o evento "' + esc(ev.nome) + '"?', 'As tarefas dele continuam no quadro de Demandas, soltas.', 'Apagar', function(){
+    else if (a === 'apagarEvento' && ev) dialogo('Apagar o evento "' + esc(ev.nome) + '"?', 'As tarefas dele continuam no quadro de Produção, soltas.', 'Apagar', function(){
       plano.eventos = plano.eventos.filter(function(x){ return x.id !== ev.id; });
       nuvem.m.deleteDoc(nuvem.m.doc(nuvem.fs, 'eventos', ev.id)); ui.eventoId = null; ui.tarefaId = null; ui.view = 'cultos'; render(); });
     else if (a === 'tirarMarco' && ev) { ev.marcos.splice(+b.dataset.k, 1); plano.salvarEvento(ev); renderEvento(); }
@@ -2344,6 +2395,14 @@ document.addEventListener('click', function(e){
   var t = e.target;
   if (t.closest('#novoCulto')) return novoCulto();
   var ib = t.closest('[data-ini]'); if (ib) return inicio.acao(ib);
+  var nb = t.closest('[data-nav]');
+  if (nb) {
+    var na = nb.dataset.nav;
+    if (na === 'anteriores') { ui.verAnteriores = !ui.verAnteriores; return renderCultos(); }
+    if (na === 'equipe') return equipe.abrir('equipe');
+    if (na === 'sair') return document.getElementById('sair').click();
+    if (na === 'mais') { var rm = nb.getBoundingClientRect(); return relatos.menu(rm.left, Math.max(10, rm.top - 56)); }
+  }
   if (t.closest('.brand') && nuvem.user) return inicio.acao({dataset: {ini: 'home'}});
   var cb = t.closest('[data-culto]');
   if (cb) { ui.cultoId = cb.dataset.culto; ui.eventoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; salvar(); return render(); }
