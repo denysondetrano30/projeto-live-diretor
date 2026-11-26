@@ -554,7 +554,7 @@ function render(){
 function renderCultos(){
   var el = document.getElementById('cultos'), hoje = hojeISO();
   var coisas = db.cultos.map(function(c){ return {tipo: 'culto', x: c, data: c.data || '', ate: c.data || ''}; });
-  if (nuvem.user) plano.eventos.forEach(function(e){ coisas.push({tipo: 'evento', x: e, data: e.inicio || '', ate: e.fim || e.inicio || ''}); });
+  if (nuvem.user) plano.eventos.forEach(function(e){ if (!e.fixo) coisas.push({tipo: 'evento', x: e, data: e.inicio || '', ate: e.fim || e.inicio || ''}); });
   var prox = coisas.filter(function(k){ return !k.data || k.ate >= hoje; }).sort(function(a, b){ return (a.data || '9').localeCompare(b.data || '9'); });
   var ant = coisas.filter(function(k){ return k.data && k.ate < hoje; }).sort(function(a, b){ return b.data.localeCompare(a.data); });
   var h = nuvem.user ?
@@ -573,6 +573,11 @@ function renderCultos(){
       '<div class="t"><span class="evTag">Evento</span>' + esc(e.nome) + '</div>' +
       '<div class="s">' + esc(dt) + (ab ? ' · ' + ab + ' tarefa' + (ab === 1 ? '' : 's') : '') + (ap ? ' · <span class="warnTxt">' + ap + ' para aprovar</span>' : '') + '</div></button>';
   };
+  if (nuvem.user) {
+    var fx = plano.fixos(), nfx = plano.materiais(fx).length;
+    h += '<button class="culto ev' + (fx.id === ui.eventoId ? ' on' : '') + '" data-evento="' + fx.id + '">' +
+      '<div class="t">Arquivos da igreja</div><div class="s">' + (nfx ? nfx + (nfx === 1 ? ' arquivo' : ' arquivos') : 'Abertura, célula, avisos que repetem') + '</div></button>';
+  }
   var mes = null;
   var bloco = function(l){ l.forEach(function(k){
     var d = parseData(k.data), m = d ? MESES[d.getMonth()] + ' ' + d.getFullYear() : 'sem data';
@@ -648,37 +653,61 @@ function renderEditor(){
   var idx = c.itens.indexOf(i) + 1;
   var h = '<button class="btn link back" data-voltar="roteiro">‹ Roteiro</button>' +
     '<div class="muted small" style="letter-spacing:.5px">ITEM ' + idx + ' · ' + esc(TIPOS[i.tipo].nome.toUpperCase()) + '</div>' +
-    '<div class="field"><label for="iTitulo">Título</label><input id="iTitulo" value="' + esc(i.titulo) + '" placeholder="' + esc(TIPOS[i.tipo].nome) + '"></div>' +
+    (i.tipo === 'musica' && nuvem.user && !i.musicaId ?
+      '<div class="field busca"><label for="iTitulo">Música · digite o nome ou um trecho da letra</label><input id="iTitulo" autocomplete="off" value="' + esc(i.titulo) + '" placeholder="Ex.: grande é o senhor  ou  teu nome é santo"><div class="bRes" id="bRes"></div></div>' :
+      '<div class="field"><label for="iTitulo">Título</label><input id="iTitulo" value="' + esc(i.titulo) + '" placeholder="' + esc(TIPOS[i.tipo].nome) + '"></div>') +
+    (i.tipo === 'musica' && nuvem.user && i.musicaId ? banco.editor(i) : '') +
     '<div class="field"><label for="iDestino">Destino</label><select id="iDestino">';
   TIPOS[i.tipo].destinos.forEach(function(d){ h += '<option value="' + d + '"' + (d === i.destino ? ' selected' : '') + '>' + DESTINOS[d].longo + '</option>'; });
   h += '</select></div>';
-  h += '<div class="field"><label for="iMin">Duração em minutos (opcional) · com ela, a mesa do somun live mostra o horário previsto e o atraso</label><input id="iMin" type="number" min="0" max="600" inputmode="numeric" value="' + (i.min > 0 ? i.min : '') + '" placeholder="Ex.: 10" style="max-width:140px"></div>';
-  if (i.tipo === 'musica' && nuvem.user) h += banco.editor(i);
   if (i.tipo === 'musica' && nuvem.user) h += banco.candidato(i);
-  if (i.tipo === 'texto' || (i.tipo === 'musica' && !i.musicaId)) {
-    h += '<div class="field" style="flex:1"><label for="iLetra">' + (i.tipo === 'musica' ? 'Letra' : 'Texto') + ' · uma linha em branco separa os slides <span id="nSlides"></span></label>' +
-      (i.tipo === 'musica' && ui.letraNota ? '<div class="msg muted" style="margin:0 0 6px">' + esc(ui.letraNota) + '</div>' : '') +
-      '<textarea id="iLetra" placeholder="' + (i.tipo === 'musica' ? (nuvem.user ? 'Música nova: cole a letra aqui. Ao publicar, ela entra no banco da igreja e vai sozinha para a Projeção. Se a música já existe, busque acima.' : 'Se a música já está cadastrada na Projeção, deixe em branco: ela usa a letra da biblioteca pelo título. Para uma música nova, cole a letra aqui.') : 'Cole aqui. Deixe uma linha em branco entre um slide e outro.') + '">' + esc(i.letra) + '</textarea></div>';
+  if (i.tipo === 'musica') {
+    /* Uma caixa só: letra com ou sem cifra. Os acordes e os recados entre colchetes vão só para o
+     * retorno de palco; o telão e a live recebem só a letra. */
+    var doBanco = !!(nuvem.user && i.musicaId);
+    var busca = 'https://www.cifraclub.com.br/?q=' + encodeURIComponent(((i.titulo || '') + ' ' + (i.artista || '')).trim());
+    h += '<div class="field" style="flex:1"><label for="iLetraCifra">' + (doBanco ? 'Cifra e recados para o retorno de palco (opcional)' : 'Letra · com ou sem cifra') + ' <span id="nSlides"></span>' +
+      '<a href="' + busca + '" target="_blank" rel="noopener" style="margin-left:6px;color:var(--blueText);font-weight:600">Procurar no Cifra Club ↗</a></label>' +
+      (ui.letraNota ? '<div class="msg muted" style="margin:0 0 6px">' + esc(ui.letraNota) + '</div>' : '') +
+      '<textarea id="iLetraCifra" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px" placeholder="' + esc(doBanco ?
+        'A letra já vem do banco. Para os músicos, cole aqui a cifra (acordes em cima da letra) e escreva recados numa linha entre colchetes, ex.: [Repete 2x]. O telão continua só com a letra.' :
+        'Cole a letra, com ou sem cifra. Uma linha em branco separa os slides. Recado só para os músicos: numa linha entre colchetes, ex.: [Repete 2x] ou [Só teclado]. O telão e a live recebem só a letra; acordes e recados vão para o retorno de palco.' +
+        (nuvem.user ? ' Ao publicar, a música entra no banco da igreja.' : '')) + '">' + esc(i.cifra || (doBanco ? '' : i.letra) || '') + '</textarea>' +
+      '<div class="msg muted" id="letraTipo"></div></div>';
+  } else if (i.tipo === 'texto') {
+    h += '<div class="field" style="flex:1"><label for="iLetra">Texto · uma linha em branco separa os slides <span id="nSlides"></span></label>' +
+      '<textarea id="iLetra" placeholder="Cole aqui. Deixe uma linha em branco entre um slide e outro.">' + esc(i.letra) + '</textarea></div>';
   } else if (i.tipo === 'imagem' || i.tipo === 'video') {
-    h += '<div class="field"><label for="iLink">Link do arquivo no Google Drive</label><input id="iLink" inputmode="url" value="' + esc(i.link) + '" placeholder="https://drive.google.com/file/d/...">' +
+    h += '<div class="field"><label for="iLink">Link do arquivo no Google Drive' + (i.tipo === 'imagem' ? ' · imagem ou PDF (o PDF vira páginas no telão)' : '') + '</label><input id="iLink" inputmode="url" value="' + esc(i.link) + '" placeholder="https://drive.google.com/file/d/...">' +
       '<div class="msg" id="linkMsg"></div>' +
       '<div class="msg muted">No Drive: botão direito no arquivo › Compartilhar › Acesso geral: <b>Qualquer pessoa com o link</b>. Sem isso a Projeção não consegue baixar.</div></div>';
     if (i.destino === 'midia') h += '<div class="field"><label for="iVertical">Versão vertical (em pé, para a transmissão vertical) · link do Drive</label><input id="iVertical" inputmode="url" value="' + esc(i.vertical || '') + '" placeholder="https://drive.google.com/file/d/..."><div class="msg" id="verticalMsg"></div></div>';
   }
-  if (i.tipo === 'musica') {
-    var busca = 'https://www.cifraclub.com.br/?q=' + encodeURIComponent(((i.titulo || '') + ' ' + (i.artista || '')).trim());
-    h += '<div class="field"><label for="iCifra">Cifra (opcional) · acordes em cima da letra, para o retorno de palco ' +
-      '<a href="' + busca + '" target="_blank" rel="noopener" style="margin-left:6px;color:var(--blueText);font-weight:600">Procurar no Cifra Club ↗</a></label>' +
-      '<textarea id="iCifra" style="min-height:110px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px" placeholder="Copie a cifra (de onde quiser) e cole aqui. O telão e a live continuam só com a letra; os acordes aparecem no retorno de palco.">' + esc(i.cifra || '') + '</textarea></div>';
-  }
   h += '<div class="field"><label for="iObs">Observação para o operador</label><input id="iObs" value="' + esc(i.obs) + '" placeholder="Ex.: repetir o refrão no fim"></div>';
   el.innerHTML = h;
-  mostrarSlides(i); mostrarLink(i); mostrarVertical(i);
-  if (i.tipo === 'musica' && nuvem.user) banco.buscar(i);
+  mostrarSlides(i); mostrarLink(i); mostrarVertical(i); mostrarLetraTipo(i);
+  /* A lista do banco aparece enquanto a música ainda não foi definida (sem letra) ou quando digita. */
+  if (i.tipo === 'musica' && nuvem.user && !i.musicaId && !(i.letra || i.cifra) && ui.semBusca !== i.id) banco.buscar(i);
 }
 function mostrarSlides(i){
   var n = document.getElementById('nSlides'); if (!n) return;
+  if (i.tipo === 'musica' && nuvem.user && i.musicaId) { n.textContent = ''; return; }
   var k = slides(i.letra); n.textContent = k ? '(' + k + (k === 1 ? ' slide)' : ' slides)') : '';
+}
+/* O que a caixa única da música entendeu: só letra, ou letra + acordes/recados para o retorno. */
+function mostrarLetraTipo(i){
+  var m = document.getElementById('letraTipo'); if (!m) return;
+  var t = i.cifra || '';
+  var partes = [];
+  if (pareceCifra(t)) partes.push('acordes');
+  if (temRecado(t)) partes.push('recados');
+  m.textContent = partes.length ? 'Entendi: letra + ' + partes.join(' e ') + '. O telão recebe só a letra; ' + partes.join(' e ') + ' vão para o retorno de palco.' : '';
+}
+/* Texto da caixa única: com acordes ou recados vira cifra (o telão recebe a letra tirada dela). */
+function mudarLetraCifra(i, texto){
+  if (nuvem.user && i.musicaId) { i.cifra = texto; return; }
+  if (pareceCifra(texto) || temRecado(texto)) { i.cifra = texto; i.letra = cifraParaLetra(texto); }
+  else { i.cifra = ''; i.letra = texto; }
 }
 function mostrarVertical(i){
   var m = document.getElementById('verticalMsg'); if (!m) return;
@@ -870,6 +899,26 @@ function dialogo(titulo, html, ok, f){
   bg.querySelector('[data-ok]').focus();
 }
 
+/* janelinha para colar um link (ex.: a versão em pé de um arquivo) */
+function pedirLink(titulo, ajuda, atual, f){
+  var bg = document.createElement('div'); bg.className = 'dialogBg';
+  bg.innerHTML = '<div class="dialog" role="dialog" aria-modal="true"><div style="font-weight:700;font-size:16px">' + esc(titulo) + '</div><div class="muted small" style="line-height:1.5">' + esc(ajuda) + '</div>' +
+    '<input id="dlgLink" inputmode="url" autocomplete="off" placeholder="https://drive.google.com/file/d/..." value="' + esc(atual || '') + '"><div class="msg bad" id="dlgMsg"></div>' +
+    '<div class="row"><button class="btn" data-x>Cancelar</button><button class="btn primary" data-ok>Salvar</button></div></div>';
+  document.body.appendChild(bg);
+  var campo = bg.querySelector('#dlgLink');
+  var ok = function(){
+    var v = campo.value.trim();
+    if (v && lerDrive(v).estado !== 'ok') { bg.querySelector('#dlgMsg').textContent = 'Não parece o link de um arquivo do Google Drive (pasta não serve).'; return; }
+    bg.remove(); f(v);
+  };
+  bg.querySelector('[data-x]').onclick = function(){ bg.remove(); };
+  bg.querySelector('[data-ok]').onclick = ok;
+  campo.addEventListener('keydown', function(e){ if (e.key === 'Enter') ok(); });
+  bg.addEventListener('click', function(e){ if (e.target === bg) bg.remove(); });
+  campo.focus();
+}
+
 /* janela com uma lista de opções grandes (ex.: escolher o culto) */
 function escolherDe(titulo, opcoes, vazio){
   var bg = document.createElement('div'); bg.className = 'dialogBg';
@@ -924,6 +973,17 @@ function cifraParaLetra(cifra){
     return !p.every(function(w){ return acorde.test(w) || w === '|'; });
   }).map(function(l){ return l.trim(); }).join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
+/* Nomes de parte da cifra ("[Refrão]", "[Intro]"...). Outro texto sozinho entre colchetes é recado
+ * para os músicos ("[Repete 2x]"), que vai só para o retorno de palco. A Projeção usa a mesma lista. */
+var PARTES_CIFRA = /^(intro(ducao)?|refrao|pre[- ]?refrao|verso|estrofe|ponte|bridge|chorus|verse|pre[- ]?chorus|coro|final|outro|solo|interludio|tag|vamp|parte|primeira parte|segunda parte|terceira parte|quarta parte|ending|instrumental|riff|pasagem|passagem)(\s*\d+)?$/i;
+function temRecado(texto){
+  return String(texto || '').split('\n').some(function(l){
+    var m = l.trim().match(/^\[([^\]]+)\]$/);
+    if (!m) return false;
+    var t = m[1].trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return !PARTES_CIFRA.test(t) && !/^tab\b/i.test(t);
+  });
+}
 /* Tem pelo menos 2 linhas só de acordes? Então é cifra. */
 function pareceCifra(texto){
   var acorde = /^\(?[A-G](#|b)?(maj|min|dim|aug|sus|add|m|M|º|°|\+|-|\d|\(|\)|\/[A-G](#|b)?|#|b)*\)?\*?$/;
@@ -956,7 +1016,7 @@ var banco = {
   achar: function(id){ return banco.lista.find(function(m){ return m.id === id; }) || null; },
   editor: function(i){
     var m = i.musicaId ? banco.achar(i.musicaId) : null;
-    if (i.musicaId) {
+    {
       var capa = (m && m.capa) || i.capa;
       return '<div class="field"><label>Música do banco da igreja</label><div class="escolhida">' +
         (capa ? '<img class="capa" src="' + esc(capa) + '" alt="">' : '<div class="capa">♪</div>') +
@@ -965,14 +1025,10 @@ var banco = {
         '<div class="previa">' + (m ? esc(m.letra) : banco.carregado ? 'Esta música não está mais no banco (foi apagada na Projeção?). Ela será criada de novo na Projeção pela letra ou pela cifra abaixo.' : 'A letra aparece aqui quando o banco carregar.') + '</div></div>' +
         '<button class="btn link small" data-trocarmusica>Trocar</button></div></div>';
     }
-    return '<div class="field busca"><label for="iBusca">Buscar no banco da igreja · pelo nome ou por um trecho da letra</label>' +
-      '<input id="iBusca" autocomplete="off" placeholder="Ex.: grande é o senhor  ou  teu nome é santo" value="' + esc(ui.busca || '') + '">' +
-      '<div class="bRes" id="bRes"></div></div>';
   },
   buscar: function(i){
-    var campo = document.getElementById('iBusca'), res = document.getElementById('bRes');
+    var campo = document.getElementById('iTitulo'), res = document.getElementById('bRes');
     if (!campo || !res) return;
-    ui.busca = campo.value;
     var q = semAcento(campo.value);
     if (!q) {
       res.innerHTML = banco.lista.length ? '' : banco.semPermissao ? '<div class="msg bad" style="padding:6px 2px">O banco de músicas está sem permissão: cole as regras novas (firestore.rules) no console do Firebase.</div>' :
@@ -995,7 +1051,7 @@ var banco = {
       return '<button class="r" data-musica="' + esc(m.id) + '">' + (m.capa ? '<img class="capa" src="' + esc(m.capa) + '" alt="">' : '<div class="capa">♪</div>') +
         '<div style="min-width:0;flex:1"><div class="t">' + esc(m.titulo) + '</div>' + (m.artista ? '<div class="a">' + esc(m.artista) + '</div>' : '') +
         '<div class="l">' + banco.trecho(m, q, termos) + '</div></div></button>';
-    }).join('') : '<div class="muted small" style="padding:4px 2px">Nenhuma música do banco tem esse nome ou trecho.</div>';
+    }).join('') : '<div class="muted small" style="padding:4px 2px">Nenhuma música do banco tem esse nome ou trecho. Se for nova, continue: cole a letra embaixo.</div>';
     h += '<div class="sec">Música nova · catálogo (a letra vem do LRCLIB)</div><div id="bApple"><div class="muted small" style="padding:4px 2px">Procurando…</div></div>';
     res.innerHTML = h;
     banco.catalogo(campo.value.trim());
@@ -1044,12 +1100,12 @@ var banco = {
   escolher: function(id){
     var i = item(), m = banco.achar(id); if (!i || !m) return;
     i.musicaId = m.id; i.showId = m.showId || ''; i.titulo = m.titulo; i.artista = m.artista; i.capa = m.capa; i.letra = ''; i.cifra = m.cifra || ''; ui.cand = null;
-    ui.busca = ''; salvar(); atualizarLinha(i); atualizarStatus(); renderEditor();
+    salvar(); atualizarLinha(i); atualizarStatus(); renderEditor();
   },
   escolherApple: function(k){
     var i = item(), x = banco.apple[k]; if (!i || !x) return;
     i.musicaId = ''; i.showId = ''; i.titulo = x.titulo; i.artista = x.artista; i.capa = x.capa;
-    ui.busca = ''; ui.letraNota = ''; ui.cand = {itemId: i.id, lista: [], idx: 0, estado: 'buscando'};
+    ui.semBusca = i.id; ui.letraNota = ''; ui.cand = {itemId: i.id, lista: [], idx: 0, estado: 'buscando'};
     salvar(); atualizarLinha(i); atualizarStatus(); renderEditor();
     banco.letras(x).then(function(lista){
       if (!ui.cand || ui.cand.itemId !== i.id) return;
@@ -1513,7 +1569,15 @@ var plano = {
     }, function(e){ console.warn('demandas', e); plano.erro = true; plano.atualizar(); }));
   },
   parar: function(){ plano.parar_.forEach(function(f){ try { f(); } catch (e) {} }); plano.parar_ = []; plano.eventos = []; plano.demandas = []; plano.fechar(); },
-  evento: function(id){ return plano.eventos.find(function(e){ return e.id === id; }) || null; },
+  evento: function(id){ return plano.eventos.find(function(e){ return e.id === id; }) || (nuvem.user && id === 'fixos_' + nuvem.user.uid ? plano.fixos() : null); },
+  /* "Arquivos da igreja" (26/11): o que não muda toda semana (abertura, arte da célula, avisos que
+   * repetem). É um evento especial (fixo, sem datas) para reaproveitar a página e o "Usar no culto". */
+  fixos: function(){
+    var id = 'fixos_' + nuvem.user.uid;
+    var ev = plano.eventos.find(function(e){ return e.id === id; });
+    if (!ev) { ev = {id: id, nome: 'Arquivos da igreja', fixo: true, links: [], verticais: {}}; plano.eventos.unshift(ev); }
+    return ev;
+  },
   demanda: function(id){ return plano.demandas.find(function(d){ return d.id === id; }) || null; },
   cultoDe: function(id){ return db.cultos.find(function(c){ return c.id === id; }) || null; },
   /* andamento de verdade: o mais novo entre a mudança do diretor e a resposta da pessoa */
@@ -1598,6 +1662,8 @@ var plano = {
     (ev.links || []).forEach(function(x, i){ poe({titulo: x.titulo, url: x.url, tirar: 'l' + i}); });
     (ev.grupos || []).forEach(function(g, gi){ (g.links || []).forEach(function(x, li){ poe({titulo: x.titulo || g.nome, url: x.url, tirar: 'g' + gi + '_' + li}); }); });
     plano.tarefasDe('evento', ev.id).forEach(function(d){ var en = plano.entrega(d); if (plano.estado(d) === 'pronto' && en && en.url) poe({titulo: d.titulo, url: en.url, tarefa: d.id}); });
+    /* Versão em pé de cada material (link do arquivo deitado -> link do em pé). */
+    l.forEach(function(m){ m.vertical = (ev.verticais || {})[m.url] || ''; });
     return l;
   },
 
@@ -1784,16 +1850,21 @@ var plano = {
   /* no roteiro: "+ Adicionar › Material de um evento" */
   escolherMaterial: function(){
     var c = culto(); if (!c) return; var ops = [];
-    plano.eventos.forEach(function(ev){
-      var links = plano.materiais(ev).map(function(l){ return {t: l.titulo || 'Material', sub: ev.nome, f: function(){ plano.usarNoCulto(c.id, l); ui.itemId = c.itens[c.itens.length - 1].id; ui.view = 'item'; render(); }}; });
+    var lista = plano.eventos.filter(function(e){ return e.fixo; }).concat(plano.eventos.filter(function(e){ return !e.fixo; }));
+    lista.forEach(function(ev){
+      var links = plano.materiais(ev).map(function(l){ return {t: l.titulo || 'Material', sub: ev.nome + (l.vertical ? ' · deitado e em pé' : ''), f: function(){ plano.usarNoCulto(c.id, l); ui.itemId = c.itens[c.itens.length - 1].id; ui.view = 'item'; render(); }}; });
       if (links.length) { ops.push({cab: ev.nome}); ops = ops.concat(links); }
     });
-    escolherDe('Material de um evento', ops, 'Nenhum material ainda. Os materiais ficam na página de cada evento (Agenda).');
+    escolherDe('Arquivo da igreja ou de evento', ops, 'Nenhum arquivo ainda. Guarde em "Arquivos da igreja" (na agenda) ou na página de cada evento.');
   },
   usarNoCulto: function(cultoId, link){
     var c = db.cultos.find(function(k){ return k.id === cultoId; }); if (!c) return;
     var video = /video|vídeo|\.mp4|\.mov|aftermovie|reels/i.test(link.titulo + ' ' + link.url);
-    c.itens.push({id: uid(), tipo: video ? 'video' : 'imagem', titulo: link.titulo || 'Material', destino: TIPOS[video ? 'video' : 'imagem'].destinos[0], letra: '', link: link.url, obs: ''});
+    var tipo = video ? 'video' : 'imagem';
+    var novo = {id: uid(), tipo: tipo, titulo: link.titulo || 'Material', destino: TIPOS[tipo].destinos[0], letra: '', link: link.url, obs: ''};
+    /* Com versão em pé: vai também para a transmissão (a vertical usa a em pé). */
+    if (link.vertical) { novo.vertical = link.vertical; if (TIPOS[tipo].destinos.indexOf('midia') >= 0) novo.destino = 'midia'; }
+    c.itens.push(novo);
     store.save(db); if (nuvem.user) nuvem.agendar(c.id);
     toast('"' + (link.titulo || 'Material') + '" entrou no roteiro de ' + (c.nome || 'culto') + (c.data ? ' (' + quando(c.data) + ')' : '') + '. Publique o culto para ir à Projeção.');
   },
@@ -1830,9 +1901,17 @@ var plano = {
       nuvem.m.deleteDoc(nuvem.m.doc(nuvem.fs, 'eventos', ev.id)); ui.eventoId = null; ui.tarefaId = null; ui.view = 'cultos'; render(); });
     else if (a === 'tirarMarco' && ev) { ev.marcos.splice(+b.dataset.k, 1); plano.salvarEvento(ev); renderEvento(); }
     else if (a === 'usar' && ev) { var mt = plano.materiais(ev)[+b.dataset.m]; if (mt) plano.escolherCulto(mt); }
+    else if (a === 'emPe' && ev) {
+      var mp = plano.materiais(ev)[+b.dataset.m]; if (!mp) return true;
+      pedirLink('Versão em pé de "' + (mp.titulo || 'Material') + '"', 'Link do Google Drive do arquivo em pé (9:16), para a transmissão vertical. Deixe vazio para tirar.', mp.vertical, function(v){
+        ev.verticais = Object.assign({}, ev.verticais || {});
+        if (v) ev.verticais[mp.url] = v; else delete ev.verticais[mp.url];
+        plano.salvarEvento(ev); renderEvento(); renderCultos();
+      });
+    }
     else if (a === 'tirarLink' && ev) {
       var tl = b.dataset.t;
-      if (tl.charAt(0) === 'l') ev.links.splice(+tl.slice(1), 1);
+      if (tl.charAt(0) === 'l') { var saiu = ev.links.splice(+tl.slice(1), 1)[0]; if (saiu && ev.verticais) delete ev.verticais[saiu.url]; }
       else { var pg = tl.slice(1).split('_'); ev.grupos[+pg[0]].links.splice(+pg[1], 1); }
       plano.salvarEvento(ev); renderEvento();
     }
@@ -1866,8 +1945,12 @@ var plano = {
       ev.marcos = (ev.marcos || []).concat([{id: uid(), nome: mn, data: md}]).sort(function(a, b){ return a.data.localeCompare(b.data); }); plano.salvarEvento(ev); renderEvento();
     } else if (tipo === 'link' && ev) {
       var url = document.getElementById('lkU').value.trim(), tl = document.getElementById('lkT').value.trim(); if (!url) return;
+      var lv = document.getElementById('lkV'), vurl = lv ? lv.value.trim() : '';
       if (lerDrive(url).estado !== 'ok') { toast('Esse link não parece de um arquivo do Google Drive (pasta não serve).'); return; }
-      ev.links = (ev.links || []).concat([{id: uid(), titulo: tl || 'Material', url: url}]); plano.salvarEvento(ev); renderEvento();
+      if (vurl && lerDrive(vurl).estado !== 'ok') { toast('O link em pé não parece de um arquivo do Google Drive (pasta não serve).'); return; }
+      ev.links = (ev.links || []).concat([{id: uid(), titulo: tl || 'Material', url: url}]);
+      if (vurl) { ev.verticais = Object.assign({}, ev.verticais || {}); ev.verticais[url] = vurl; }
+      plano.salvarEvento(ev); renderEvento(); renderCultos();
     }
   }
 };
@@ -1877,6 +1960,19 @@ function renderEvento(){
   var el = document.getElementById('roteiro'), ev = plano.evento(ui.eventoId);
   if (!ev) { el.innerHTML = '<div class="empty">Carregando o evento…</div>'; return; }
   var mats = plano.materiais(ev);
+  var linhaMat = function(m, i){
+    return '<div class="lnk"><a href="' + esc(m.url) + '" target="_blank" rel="noopener">' + esc(m.titulo || 'Material') + ' ↗</a>' + (m.tarefa ? '<span class="muted small">entrega aprovada</span>' : '') +
+      (m.vertical ? '<button class="btn link small" data-pl="emPe" data-m="' + i + '" title="Trocar ou tirar a versão em pé">em pé ✓</button>' : '<button class="btn link small" data-pl="emPe" data-m="' + i + '">+ em pé</button>') +
+      '<button class="usar" data-pl="usar" data-m="' + i + '">▶ Usar no culto</button>' + (m.tirar ? '<button class="btn link small" data-pl="tirarLink" data-t="' + m.tirar + '" title="Tirar">×</button>' : '') + '</div>';
+  };
+  var formLink = '<form class="addTarefa" data-plform="link"><input id="lkT" placeholder="Nome (ex.: ' + (ev.fixo ? 'Abertura' : 'Arte stories') + ')" autocomplete="off"><input id="lkU" placeholder="Link do Drive · deitado" inputmode="url" autocomplete="off" required><input id="lkV" placeholder="Link do Drive · em pé (opcional)" inputmode="url" autocomplete="off"><button class="btn">Adicionar</button></form>';
+  if (ev.fixo) {
+    el.innerHTML = '<button class="btn link back" data-voltar="cultos">‹ Agenda</button>' +
+      '<div class="head"><div style="flex:1;min-width:240px"><div class="muted small" style="letter-spacing:.5px">ARQUIVOS DA IGREJA</div><h2 style="margin:4px 0 0">O que se repete</h2>' +
+      '<div class="muted small" style="margin-top:4px">Abertura, arte da célula, avisos que ficam várias semanas. Guarde uma vez (deitado e em pé) e use em qualquer culto.</div></div></div>' +
+      '<div class="secao"><div class="lblSec">Arquivos</div>' + (mats.length ? mats.map(linhaMat).join('') : '<div class="muted small">Nenhum arquivo ainda. Cole abaixo o link do Drive (e o em pé, se tiver).</div>') + formLink + '</div>';
+    return;
+  }
   var h = '<button class="btn link back" data-voltar="cultos">‹ Agenda</button>' +
     '<div class="head"><div style="flex:1;min-width:240px"><div class="muted small" style="letter-spacing:.5px">EVENTO</div>' +
     '<input class="titleIn" id="evNome" data-ecampo="nome" aria-label="Nome do evento" value="' + esc(ev.nome) + '" placeholder="Nome do evento">' +
@@ -1886,11 +1982,9 @@ function renderEvento(){
     '<form class="addTarefa" data-plform="marco"><input id="mkNome" placeholder="Ex.: Inscrições abrem" autocomplete="off" required><input id="mkData" type="date" required><button class="btn">Adicionar</button></form></div>' +
     plano.htmlTarefas('evento', ev.id) +
     '<div class="secao"><div class="lblSec">Materiais</div>' +
-    (mats.length ? mats.map(function(m, i){
-      return '<div class="lnk"><a href="' + esc(m.url) + '" target="_blank" rel="noopener">' + esc(m.titulo || 'Material') + ' ↗</a>' + (m.tarefa ? '<span class="muted small">entrega aprovada</span>' : '') +
-        '<button class="usar" data-pl="usar" data-m="' + i + '">▶ Usar no culto</button>' + (m.tirar ? '<button class="btn link small" data-pl="tirarLink" data-t="' + m.tirar + '" title="Tirar">×</button>' : '') + '</div>'; }).join('')
+    (mats.length ? mats.map(linhaMat).join('')
       : '<div class="muted small">As entregas aprovadas das tarefas aparecem aqui sozinhas. Também dá para colar um link do Drive.</div>') +
-    '<form class="addTarefa" data-plform="link"><input id="lkT" placeholder="Nome (ex.: Arte stories)" autocomplete="off"><input id="lkU" placeholder="Link do Google Drive" inputmode="url" autocomplete="off" required><button class="btn">Adicionar</button></form></div>' +
+    formLink + '</div>' +
     '<div><button class="btn link small" data-pl="apagarEvento">Apagar evento</button></div>';
   el.innerHTML = h;
 }
@@ -2082,7 +2176,7 @@ document.addEventListener('click', function(e){
   if (t.closest('#addItem')) {
     var r = t.closest('#addItem').getBoundingClientRect();
     var ops = Object.keys(TIPOS).map(function(k){ return {t: TIPOS[k].nome, f: function(){ novoItem(k); }}; });
-    if (nuvem.user) ops.push({t: 'Material de um evento', f: plano.escolherMaterial});
+    if (nuvem.user) ops.push({t: 'Arquivo da igreja ou de evento', f: plano.escolherMaterial});
     return menu(r.left, r.bottom + 6, ops);
   }
   var li = t.closest('[data-item]');
@@ -2115,14 +2209,12 @@ document.addEventListener('input', function(e){
   if (id === 'cNome') c.nome = e.target.value;
   else if (id === 'cData') c.data = e.target.value;
   else if (id === 'cHora') c.hora = e.target.value;
-  else if (i && id === 'iBusca') { banco.buscar(i); return; }
-  else if (i && id === 'iTitulo') i.titulo = e.target.value;
+  else if (i && id === 'iTitulo') { i.titulo = e.target.value; if (i.tipo === 'musica' && nuvem.user && !i.musicaId) { ui.semBusca = null; banco.buscar(i); } }
+  else if (i && id === 'iLetraCifra') { mudarLetraCifra(i, e.target.value); mostrarSlides(i); mostrarLetraTipo(i); }
   else if (i && id === 'iLetra') { i.letra = e.target.value; mostrarSlides(i); }
   else if (i && id === 'iLink') { i.link = e.target.value.trim(); mostrarLink(i); }
   else if (i && id === 'iVertical') { i.vertical = e.target.value.trim(); mostrarVertical(i); }
   else if (i && id === 'iObs') i.obs = e.target.value;
-  else if (i && id === 'iMin') { var m = parseInt(e.target.value, 10); if (m > 0) i.min = Math.min(m, 600); else delete i.min; salvar(); c.itens.forEach(atualizarLinha); atualizarStatus(); return; }
-  else if (i && id === 'iCifra') i.cifra = e.target.value;
   else return;
   salvar();
   if (i && id.charAt(0) === 'i') atualizarLinha(i);
