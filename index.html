@@ -161,6 +161,27 @@ label.cfRow{cursor:pointer}label.cfRow input{margin:3px 0 0;width:16px;height:16
 .navPe{border-top:1px solid var(--line);padding-top:10px;margin-top:10px;display:flex;flex-direction:column;gap:4px}
 .navConta{padding:0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .navAcoes{display:flex;gap:4px;justify-content:space-between;padding:0 4px}
+/* redes sociais */
+.redes{display:flex;flex-direction:column;gap:14px}
+.semana{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:6px}
+.dia{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 6px;display:flex;flex-direction:column;gap:6px;min-height:160px;min-width:0}
+.dia.hoje{border-color:var(--sel)}
+.diaT{color:var(--muted);font-size:12px;font-weight:600;padding:0 2px}
+.post{display:flex;flex-direction:column;gap:2px;text-align:left;background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:7px;min-width:0}
+.post:hover{border-color:#8c8c8c}
+.post.on{border-color:#fff}
+.pRede{color:var(--muted);font-size:11px}
+.pT{font-weight:600;font-size:13px;overflow-wrap:break-word}
+.pE{color:var(--muted);font-size:11px}
+.diaMais{margin-top:auto;background:transparent;border:1px dashed transparent;border-radius:8px;color:var(--muted);min-height:28px}
+.dia:hover .diaMais{border-color:var(--line2)}
+.diaMais:hover{color:var(--text)}
+.peca{display:flex;justify-content:space-between;gap:8px;width:100%;text-align:left;background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:13px}
+.peca .muted{font-size:12px;text-align:right}
+.addPeca{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.addPeca input,.addPeca select{background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:8px;min-width:0}
+.addPeca input:first-child{grid-column:1/3}
+@media (max-width: 900px){ .semana{grid-template-columns:1fr} .dia{min-height:0} }
 /* tela de início */
 .cols.inicio{grid-template-columns:260px 1fr}
 .cols.inicio aside.editor{display:none}
@@ -311,6 +332,9 @@ label.cfRow{cursor:pointer}label.cfRow input{margin:3px 0 0;width:16px;height:16
 .estado.para_aprovar,.estado.pendente{background:#fff;color:#141414;font-weight:600}
 .estado.ajustar,.estado.recusado{background:rgba(229,72,59,.16);color:#ff8a80}
 .estado.pronto,.estado.confirmado{background:#1f1f1f;color:#8c8c8c;box-shadow:inset 0 0 0 1px #2e2e2e}
+.estado.ideia{background:#2a2a2a;color:#d0d0d0}
+.estado.produzindo{background:transparent;color:#f2f2f2;box-shadow:inset 0 0 0 1px #8c8c8c}
+.estado.publicado{background:#1f1f1f;color:#8c8c8c}
 .tag.culto{background:#3a3a3a}
 .tag.evento{background:#2a2a2a;border-left:3px solid #fff}
 .tag.marco{background:#1f1f1f;border-left:3px solid #8c8c8c}
@@ -593,9 +617,9 @@ function render(){
   document.getElementById('app').dataset.view = ui.view;
   var casa = emInicio();
   /* Na tela de início o painel do meio ocupa também a coluna da direita (menos com uma tarefa aberta). */
-  document.querySelector('.cols').classList.toggle('inicio', (casa || (nuvem.user && ui.eventoId === 'fixos_' + nuvem.user.uid)) && !ui.tarefaId);
+  document.querySelector('.cols').classList.toggle('inicio', (casa || (nuvem.user && ui.eventoId === 'fixos_' + nuvem.user.uid) || (ui.redes && !ui.postId)) && !ui.tarefaId);
   renderCultos();
-  if (ui.eventoId && nuvem.user) renderEvento(); else if (casa) renderInicio(); else renderRoteiro();
+  if (ui.redes && nuvem.user) renderRedes(); else if (ui.eventoId && nuvem.user) renderEvento(); else if (casa) renderInicio(); else renderRoteiro();
   renderEditor();
 }
 
@@ -604,7 +628,7 @@ function render(){
  * que precisa de mim? o que vem aí? Cada pendência tem um botão que leva para onde se resolve.
  * Só equipe de mídia (transmissão, tela, foto, vídeo, design). Vermelho só no que é urgente. */
 var DIAS_LONGOS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
-function emInicio(){ return !!nuvem.user && !ui.cultoId && !ui.eventoId; }
+function emInicio(){ return !!nuvem.user && !ui.cultoId && !ui.eventoId && !ui.redes; }
 var inicio = {
   dias: function(data){
     var n = Math.round((new Date(data + 'T12:00') - new Date(hojeISO() + 'T12:00')) / 864e5);
@@ -663,6 +687,14 @@ var inicio = {
       if (est === 'para_aprovar') l.push({icone: 'check', texto: d.titulo + ' esperando aprovação', sub: (inicio.nome(d.pessoa) || 'Alguém') + ' mandou' + (plano.origem(d) ? ' · ' + plano.origem(d) : ''), botao: 'Ver', acao: 'tarefa', dados: d.id});
       else if (est !== 'pronto' && d.prazo && d.prazo < hoje) l.push({icone: 'clock', texto: d.titulo + ' atrasada', sub: (inicio.nome(d.pessoa) || 'Sem responsável') + ' · prazo ' + d.prazo.slice(8, 10) + '/' + d.prazo.slice(5, 7), botao: 'Ver', acao: 'tarefa', dados: d.id, urgente: true});
     });
+    var em3 = iso(new Date(Date.now() + 3 * 864e5)), sete = iso(new Date(Date.now() - 7 * 864e5));
+    redes.posts.forEach(function(po){
+      var ep = redes.estado(po);
+      if (ep === 'publicado' || !po.data) return;
+      var quandoP = po.data === hoje ? 'hoje' : DIAS[new Date(po.data + 'T12:00').getDay()];
+      if (po.data < hoje && po.data >= sete) l.push({icone: 'send', texto: 'Post "' + po.titulo + '" não foi marcado como publicado', sub: 'Era para ' + po.data.slice(8, 10) + '/' + po.data.slice(5, 7), botao: 'Ver', acao: 'post', dados: po.id, urgente: true});
+      else if (po.data >= hoje && po.data <= em3 && ep !== 'pronto') l.push({icone: 'check', texto: 'Post de ' + quandoP + ': ' + po.titulo, sub: ESTADO_POST[ep] + ' · ' + (po.redes || []).map(function(r){ return redes.rede(r).nome; }).join(', '), botao: 'Ver', acao: 'post', dados: po.id});
+    });
     if (c && c.itens.length) {
       var u = ultima(c);
       if (!u || mudou(c)) l.push({icone: 'send', texto: u ? 'Mudou depois da v' + u.n + ': falta publicar' : 'Ainda não publicado', sub: 'O somun tela recebe quando você publica', botao: 'Abrir roteiro', acao: 'culto', dados: c.id});
@@ -705,6 +737,18 @@ var inicio = {
     });
     return h + '</div>';
   },
+  nasRedes: function(){
+    var hoje = hojeISO(), ate = iso(new Date(Date.now() + 6 * 864e5));
+    var l = redes.posts.filter(function(p){ return p.data && p.data >= hoje && p.data <= ate; }).sort(function(a, b){ return (a.data + (a.hora || '')).localeCompare(b.data + (b.hora || '')); });
+    if (!l.length && !redes.posts.length) return '';
+    var h = '<div class="iniBloco"><div class="lblSec">Esta semana nas redes</div>';
+    if (!l.length) h += '<div class="muted small">Nenhum post nos próximos 7 dias.</div>';
+    l.slice(0, 6).forEach(function(p){
+      var est = redes.estado(p), atr = redes.atrasada(p);
+      h += '<button class="iniLinha" data-ini="post" data-d="' + esc(p.id) + '"><span>' + esc((p.data === hoje ? 'hoje' : DIAS[new Date(p.data + 'T12:00').getDay()]) + ' · ' + p.titulo) + '</span><span class="' + (atr ? 'urg' : 'muted') + '">' + (atr ? 'peça atrasada' : ESTADO_POST[est].toLowerCase()) + '</span></button>';
+    });
+    return h + '</div>';
+  },
   vemAi: function(prox){
     var hoje = hojeISO(), ate = iso(new Date(Date.now() + 60 * 864e5)), linhas = [];
     db.cultos.filter(function(c){ return c.data && c.data >= hoje && c.data <= ate && !inicio.acabou(c) && (!prox || c.id !== prox.id); })
@@ -734,6 +778,8 @@ var inicio = {
     if (a === 'escala') { ui.cultoId = d; ui.eventoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; render(); return equipe.abrir('escala'); }
     if (a === 'tarefa') return plano.abrirTarefa(d);
     if (a === 'evento') { ui.eventoId = d; ui.cultoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; return render(); }
+    if (a === 'post') { ui.redes = true; ui.postId = d; ui.cultoId = null; ui.eventoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'item';
+      var po = redes.post(d); if (po && po.data) { var dd = new Date(po.data + 'T12:00'); dd.setDate(dd.getDate() - dd.getDay()); ui.semana = iso(dd); } return render(); }
   }
 };
 function renderInicio(){
@@ -756,7 +802,7 @@ function renderInicio(){
       '<div class="iniTx"><div>' + esc(p.texto) + '</div>' + (p.sub ? '<div class="muted small">' + esc(p.sub) + '</div>' : '') + '</div>' +
       '<button class="btn small' + (p.principal ? ' primary' : '') + '" data-ini="' + p.acao + '" data-d="' + esc(p.dados) + '">' + esc(p.botao) + '</button></div>';
   });
-  h += '</div><div class="iniGrade">' + inicio.posCulto() + inicio.vemAi(c) + '</div></div>';
+  h += '</div><div class="iniGrade">' + inicio.posCulto() + inicio.nasRedes() + inicio.vemAi(c) + '</div></div>';
   el.innerHTML = h;
 }
 /* Quantas coisas faltam (para a linha "Início" da agenda). */
@@ -799,11 +845,194 @@ function renderCultos(){
   if (emInicio() && document.getElementById('iniBox')) renderInicio();
 }
 
+/* ---------------- redes sociais (26/11) ----------------
+ * Planejamento e produção de conteúdo para qualquer rede (não só o que vai ao vivo).
+ * posts/<id>: {owner, titulo, redes[ids], formato, data, hora, legenda, estado (ideia|pronto, só sem
+ *   peças), publicado{rede: quando}, criadoEm}. As peças (arte, vídeo, capa) são tarefas da Produção
+ *   com o campo post = <id>: a pessoa entrega pelo link pessoal e o diretor aprova; o post fica
+ *   "pronto" sozinho quando todas as peças estão aprovadas. Aqui a semana mostra o DIA DE POSTAR; a
+ *   Produção mostra o PRAZO de cada peça (que nasce 3 dias antes da postagem).
+ * Publicar sozinho nas redes não dá (API da Meta/TikTok pede app aprovado e servidor): a pessoa
+ * publica pelo app da rede e marca "publicado" aqui. */
+var REDES = [
+  {id: 'instagram', nome: 'Instagram', curto: 'IG', formatos: ['Feed', 'Carrossel', 'Reels', 'Stories']},
+  {id: 'youtube', nome: 'YouTube', curto: 'YT', formatos: ['Vídeo', 'Shorts', 'Ao vivo']},
+  {id: 'tiktok', nome: 'TikTok', curto: 'TT', formatos: ['Vídeo']},
+  {id: 'facebook', nome: 'Facebook', curto: 'FB', formatos: ['Post', 'Vídeo', 'Stories']}
+];
+var ESTADO_POST = {ideia: 'Ideia', produzindo: 'Produzindo', para_aprovar: 'Para aprovar', pronto: 'Pronto', publicado: 'Publicado'};
+var PRAZO_ANTES = 3;
+var redes = {
+  posts: [], extras: [], filtro: '', carregouExtras: false,
+  todas: function(){ return REDES.concat(redes.extras.map(function(n){ return {id: 'x_' + semAcento(n).replace(/\s+/g, '_'), nome: n, curto: n.slice(0, 2).toUpperCase(), formatos: ['Post', 'Vídeo']}; })); },
+  rede: function(id){ return redes.todas().find(function(r){ return r.id === id; }) || {id: id, nome: id, curto: id.slice(0, 2).toUpperCase(), formatos: []}; },
+  post: function(id){ return redes.posts.find(function(p){ return p.id === id; }) || null; },
+  pecas: function(p){ return plano.demandas.filter(function(d){ return d.post === p.id; }); },
+  estado: function(p){
+    var rs = p.redes || [], pub = p.publicado || {};
+    if (rs.length && rs.every(function(r){ return pub[r]; })) return 'publicado';
+    var l = redes.pecas(p);
+    if (l.length) {
+      var es = l.map(function(d){ return plano.estado(d); });
+      if (es.every(function(e){ return e === 'pronto'; })) return 'pronto';
+      if (es.some(function(e){ return e === 'para_aprovar'; })) return 'para_aprovar';
+      return 'produzindo';
+    }
+    return p.estado === 'pronto' ? 'pronto' : 'ideia';
+  },
+  atrasada: function(p){ var hoje = hojeISO(); return redes.pecas(p).some(function(d){ return d.prazo && d.prazo < hoje && plano.estado(d) !== 'pronto'; }); },
+  semana: function(){
+    if (!ui.semana) { var d = new Date(hojeISO() + 'T12:00'); d.setDate(d.getDate() - d.getDay()); ui.semana = iso(d); }
+    return ui.semana;
+  },
+  ouvir: function(F, fs, u){
+    plano.parar_.push(F.onSnapshot(F.query(F.collection(fs, 'posts'), F.where('owner', '==', u)), function(snap){
+      var l = []; snap.forEach(function(d){ var x = d.data(); x.id = d.id; l.push(x); });
+      redes.posts = l; redes.redesenhar();
+    }, function(e){ console.warn('posts', e); redes.semPermissao = /permission/i.test(String(e && e.code || e)); redes.redesenhar(); }));
+    F.getDoc(F.doc(fs, 'perfis', u)).then(function(d){ var x = d.exists() ? d.data() : {}; redes.extras = Array.isArray(x.redesExtras) ? x.redesExtras : []; redes.redesenhar(); }).catch(function(){});
+  },
+  redesenhar: function(){
+    if (!nuvem.user) return;
+    var foco = document.activeElement, dig = foco && /^(INPUT|SELECT|TEXTAREA)$/.test(foco.tagName) && foco.closest('#editor');
+    if (ui.redes) { renderRedes(); if (!dig && !ui.tarefaId) renderEditor(); }
+    renderCultos();
+  },
+  salvar: function(p){
+    var F = nuvem.m, dados = Object.assign({}, p); delete dados.id; dados.owner = nuvem.user.uid; dados.atualizadoEm = new Date().toISOString();
+    var k = redes.posts.findIndex(function(x){ return x.id === p.id; }); if (k >= 0) redes.posts[k] = p; else redes.posts.push(p);
+    F.setDoc(F.doc(nuvem.fs, 'posts', p.id), dados).catch(function(e){ console.warn(e); toast(/permission/i.test(String(e && e.code || e)) ? 'Sem permissão: cole as regras novas no console do Firebase.' : 'Não deu para salvar o post'); });
+  },
+  novo: function(data){
+    var p = {id: uid(), titulo: 'Novo post', redes: ['instagram'], formato: 'Feed', data: data || hojeISO(), hora: '', legenda: '', estado: 'ideia', publicado: {}, criadoEm: new Date().toISOString()};
+    redes.salvar(p); ui.postId = p.id; ui.tarefaId = null; ui.view = 'item'; render();
+    var t = document.getElementById('pTitulo'); if (t) { t.focus(); t.select(); }
+  },
+  /* Os posts da semana (dia de postar). */
+  html: function(){
+    var ini = new Date(redes.semana() + 'T12:00'), hoje = hojeISO(), dias = [];
+    for (var k = 0; k < 7; k++) { var d = new Date(ini.getTime() + k * 864e5); dias.push(iso(d)); }
+    var fim = dias[6];
+    var h = '<div class="redes"><div class="iniTopo"><div><div class="lblSec">Dia de postar</div><div class="iniNome">Redes sociais</div></div>' +
+      '<div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn" data-rp="semana" data-d="-7" aria-label="Semana anterior">‹</button>' +
+      '<button class="btn" data-rp="hoje">' + esc(dias[0].slice(8, 10) + '/' + dias[0].slice(5, 7) + ' a ' + fim.slice(8, 10) + '/' + fim.slice(5, 7)) + '</button>' +
+      '<button class="btn" data-rp="semana" data-d="7" aria-label="Próxima semana">›</button><button class="btn primary" data-rp="novo">+ Post</button></div></div>';
+    if (redes.semPermissao) h += '<div class="msg bad">Os posts estão sem permissão: cole as regras novas (firestore.rules) no console do Firebase.</div>';
+    h += '<div class="fchips">' + [{id: '', nome: 'Todas'}].concat(redes.todas()).map(function(r){
+      return '<button class="' + (redes.filtro === r.id ? 'sim' : '') + '" data-rp="filtro" data-r="' + esc(r.id) + '">' + esc(r.nome) + '</button>'; }).join('') +
+      '<button data-rp="novaRede" style="border-style:dashed">+ rede</button></div>';
+    h += '<div class="semana">';
+    dias.forEach(function(dia){
+      var posts = redes.posts.filter(function(p){ return p.data === dia && (!redes.filtro || (p.redes || []).indexOf(redes.filtro) >= 0); })
+        .sort(function(a, b){ return (a.hora || '99').localeCompare(b.hora || '99'); });
+      var dd = new Date(dia + 'T12:00');
+      h += '<div class="dia' + (dia === hoje ? ' hoje' : '') + '"><div class="diaT">' + DIAS[dd.getDay()] + ' ' + dia.slice(8, 10) + '</div>';
+      posts.forEach(function(p){
+        var est = redes.estado(p), atras = redes.atrasada(p), passou = dia < hoje && est !== 'publicado';
+        var peca = redes.pecas(p).filter(function(d){ return plano.estado(d) !== 'pronto' && d.prazo; }).sort(function(a, b){ return a.prazo.localeCompare(b.prazo); })[0];
+        h += '<button class="post' + (p.id === ui.postId ? ' on' : '') + '" data-rp="abrir" data-id="' + esc(p.id) + '">' +
+          '<span class="pRede">' + esc((p.redes || []).map(function(r){ return redes.rede(r).curto; }).join(' · ') + (p.formato ? ' · ' + p.formato.toLowerCase() : '')) + (p.hora ? ' · ' + esc(p.hora) : '') + '</span>' +
+          '<span class="pT">' + esc(p.titulo || 'Post') + '</span>' +
+          '<span class="pE' + (atras || passou ? ' urg' : '') + '">' + (atras ? 'peça atrasada' : passou ? 'não publicado' : ESTADO_POST[est].toLowerCase() + (peca ? ' · peça vence ' + DIAS[new Date(peca.prazo + 'T12:00').getDay()] : '')) + '</span></button>';
+      });
+      h += '<button class="diaMais" data-rp="novo" data-d="' + dia + '" aria-label="Novo post neste dia">+</button></div>';
+    });
+    return h + '</div><div class="muted small">A semana mostra o dia de postar. O prazo de cada peça (arte, vídeo) aparece na Produção.</div></div>';
+  },
+  /* O post aberto (coluna da direita). */
+  htmlPost: function(p){
+    var est = redes.estado(p), l = redes.pecas(p), hoje = hojeISO();
+    var formatos = []; (p.redes || []).forEach(function(r){ redes.rede(r).formatos.forEach(function(f){ if (formatos.indexOf(f) < 0) formatos.push(f); }); });
+    if (p.formato && formatos.indexOf(p.formato) < 0) formatos.push(p.formato);
+    if (formatos.indexOf('Outro') < 0) formatos.push('Outro');
+    var prazo = p.data ? iso(new Date(new Date(p.data + 'T12:00').getTime() - PRAZO_ANTES * 864e5)) : '';
+    if (prazo && prazo < hoje) prazo = hoje;
+    var pessoas = '<option value="">— ninguém —</option>' + equipe.pessoas.map(function(x){ return '<option value="' + esc(x.id) + '">' + esc(x.nome || 'Sem nome') + '</option>'; }).join('');
+    var h = '<button class="btn link back" data-voltar="roteiro">‹ Semana</button>' +
+      '<div class="row" style="justify-content:space-between"><div class="muted small" style="letter-spacing:.5px">POST</div><span class="estado ' + est + '">' + ESTADO_POST[est] + '</span></div>' +
+      '<div class="field"><label for="pTitulo">Título</label><input id="pTitulo" data-pcampo="titulo" value="' + esc(p.titulo) + '" placeholder="Ex.: Inscrições do acampa"></div>' +
+      '<div class="field"><label>Redes</label><div class="fchips">' + redes.todas().map(function(r){
+        return '<button class="' + ((p.redes || []).indexOf(r.id) >= 0 ? 'sim' : '') + '" data-rp="rede" data-r="' + esc(r.id) + '">' + esc(r.nome) + '</button>'; }).join('') + '</div></div>' +
+      '<div class="row" style="gap:8px;justify-content:flex-start;flex-wrap:wrap">' +
+      '<div class="field" style="flex:1;min-width:120px"><label for="pFormato">Formato</label><select id="pFormato" data-pcampo="formato">' + formatos.map(function(f){ return '<option' + (f === p.formato ? ' selected' : '') + '>' + esc(f) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><label for="pData">Dia de postar</label><input id="pData" type="date" data-pcampo="data" value="' + esc(p.data || '') + '" style="color-scheme:dark"></div>' +
+      '<div class="field"><label for="pHora">Hora</label><input id="pHora" type="time" data-pcampo="hora" value="' + esc(p.hora || '') + '" style="color-scheme:dark"></div></div>' +
+      '<div class="field"><label for="pLegenda">Legenda <button class="btn link small" data-rp="copiar" style="float:right;min-height:0">Copiar legenda</button></label><textarea id="pLegenda" data-pcampo="legenda" style="min-height:110px" placeholder="O texto que vai junto do post.">' + esc(p.legenda || '') + '</textarea></div>' +
+      '<div class="field"><label>Peças · tarefas da Produção (a pessoa entrega pelo link pessoal)</label>';
+    l.sort(function(a, b){ return (a.prazo || '9').localeCompare(b.prazo || '9'); }).forEach(function(d){
+      var e = plano.estado(d), atr = d.prazo && d.prazo < hoje && e !== 'pronto';
+      h += '<button class="peca" data-pl="tarefa" data-id="' + esc(d.id) + '"><span>' + esc(d.titulo) + '</span><span class="muted' + (atr ? ' urg' : '') + '">' +
+        esc((inicio.nome(d.pessoa) || 'sem responsável') + (d.prazo ? ' · ' + (atr ? 'venceu ' : 'até ') + d.prazo.slice(8, 10) + '/' + d.prazo.slice(5, 7) : '') + ' · ' + ESTADO_DEMANDA[e].toLowerCase()) + '</span></button>';
+    });
+    if (!l.length) h += '<div class="muted small" style="margin-bottom:6px">Sem peças: o post fica como "ideia" até você marcar pronto, ou até as peças serem aprovadas.</div>';
+    h += '<div class="addPeca"><input id="pcT" placeholder="Ex.: Arte do carrossel" autocomplete="off"><select id="pcP" aria-label="Quem faz">' + pessoas + '</select>' +
+      '<input id="pcD" type="date" value="' + esc(prazo) + '" aria-label="Prazo" style="color-scheme:dark"><button class="btn" data-rp="addPeca">+ Peça</button></div></div>';
+    if (!l.length && est !== 'publicado') h += '<div class="fchips"><button class="' + (est === 'ideia' ? 'sim' : '') + '" data-rp="estado" data-e="ideia">Ideia</button><button class="' + (est === 'pronto' ? 'sim' : '') + '" data-rp="estado" data-e="pronto">Pronto para postar</button></div>';
+    h += '<div class="field"><label>Publicado</label><div class="fchips">' + (p.redes || []).map(function(r){
+      var feito = (p.publicado || {})[r];
+      return '<button class="' + (feito ? 'sim' : '') + '" data-rp="publicado" data-r="' + esc(r) + '">' + esc(redes.rede(r).nome) + (feito ? ' ✓' : '') + '</button>'; }).join('') +
+      ((p.redes || []).length ? '' : '<span class="muted small">Escolha pelo menos uma rede.</span>') + '</div>' +
+      '<div class="muted small" style="margin-top:4px">Publique pelo app da rede e toque aqui para marcar.</div></div>' +
+      '<div><button class="btn link small" data-rp="apagar">Apagar post</button></div>';
+    return h;
+  },
+  acao: function(b){
+    var a = b.dataset.rp, p = redes.post(ui.postId);
+    if (a === 'semana') { var d = new Date(redes.semana() + 'T12:00'); d.setDate(d.getDate() + (+b.dataset.d)); ui.semana = iso(d); return renderRedes(); }
+    if (a === 'hoje') { ui.semana = null; return renderRedes(); }
+    if (a === 'filtro') { redes.filtro = b.dataset.r; return renderRedes(); }
+    if (a === 'novo') return redes.novo(b.dataset.d || (hojeISO() >= redes.semana() && hojeISO() <= iso(new Date(new Date(redes.semana() + 'T12:00').getTime() + 6 * 864e5)) ? hojeISO() : redes.semana()));
+    if (a === 'abrir') { ui.postId = b.dataset.id; ui.tarefaId = null; ui.view = 'item'; return render(); }
+    if (a === 'novaRede') return pedirTexto('Nova rede', 'Nome da rede (ex.: Threads, Kwai, Spotify).', function(n){
+      if (!n || redes.todas().some(function(r){ return semAcento(r.nome) === semAcento(n); })) return;
+      redes.extras = redes.extras.concat([n]); conf_perfil({redesExtras: redes.extras}); redes.redesenhar(); });
+    if (!p) return;
+    if (a === 'rede') {
+      var r = b.dataset.r, rs = (p.redes || []).slice(), k = rs.indexOf(r);
+      if (k >= 0) rs.splice(k, 1); else rs.push(r);
+      p.redes = rs; if (p.publicado) delete p.publicado[r];
+    } else if (a === 'estado') p.estado = b.dataset.e;
+    else if (a === 'publicado') { p.publicado = Object.assign({}, p.publicado || {}); var rr = b.dataset.r; if (p.publicado[rr]) delete p.publicado[rr]; else p.publicado[rr] = new Date().toISOString(); }
+    else if (a === 'copiar') { try { navigator.clipboard.writeText(p.legenda || ''); toast('Legenda copiada.'); } catch (e) {} return; }
+    else if (a === 'addPeca') {
+      var t = document.getElementById('pcT').value.trim(); if (!t) { toast('Escreva qual peça (ex.: Arte do carrossel).'); return; }
+      plano.novaTarefa({titulo: t, pessoa: document.getElementById('pcP').value, prazo: document.getElementById('pcD').value, post: p.id});
+      return redes.redesenhar();
+    } else if (a === 'apagar') return dialogo('Apagar o post "' + esc(p.titulo) + '"?', 'As peças dele continuam na Produção, soltas.', 'Apagar', function(){
+      redes.posts = redes.posts.filter(function(x){ return x.id !== p.id; });
+      nuvem.m.deleteDoc(nuvem.m.doc(nuvem.fs, 'posts', p.id)).catch(function(e){ console.warn(e); });
+      ui.postId = null; ui.view = 'roteiro'; render(); });
+    redes.salvar(p); renderRedes(); renderEditor();
+  },
+  mudar: function(t){
+    var p = redes.post(ui.postId); if (!p) return;
+    var c = t.dataset.pcampo; p[c] = c === 'titulo' ? t.value : t.value;
+    clearTimeout(redes.timer);
+    redes.timer = setTimeout(function(){ if (!p.titulo.trim()) p.titulo = 'Post'; redes.salvar(p); renderRedes(); renderCultos(); }, c === 'titulo' || c === 'legenda' ? 600 : 0);
+  }
+};
+function conf_perfil(dados){ nuvem.m.setDoc(nuvem.m.doc(nuvem.fs, 'perfis', nuvem.user.uid), dados, {merge: true}).catch(function(e){ console.warn(e); }); }
+/* janelinha para escrever um nome curto */
+function pedirTexto(titulo, ajuda, f){
+  var bg = document.createElement('div'); bg.className = 'dialogBg';
+  bg.innerHTML = '<div class="dialog" role="dialog" aria-modal="true"><div style="font-weight:700;font-size:16px">' + esc(titulo) + '</div><div class="muted small">' + esc(ajuda) + '</div>' +
+    '<input id="dlgTexto" autocomplete="off"><div class="row"><button class="btn" data-x>Cancelar</button><button class="btn primary" data-ok>Salvar</button></div></div>';
+  document.body.appendChild(bg);
+  var campo = bg.querySelector('#dlgTexto'), ok = function(){ var v = campo.value.trim(); bg.remove(); f(v); };
+  bg.querySelector('[data-x]').onclick = function(){ bg.remove(); };
+  bg.querySelector('[data-ok]').onclick = ok;
+  campo.addEventListener('keydown', function(e){ if (e.key === 'Enter') ok(); });
+  bg.addEventListener('click', function(e){ if (e.target === bg) bg.remove(); });
+  campo.focus();
+}
+function renderRedes(){ if (!ui.redes) return; document.getElementById('roteiro').innerHTML = redes.html(); }
+
 /* Menu do Diretor (decidido 26/11): tudo num lugar só, sempre igual — Início, Cultos e eventos (com
  * os próximos embaixo), Produção, Equipe e Arquivos da igreja; conta, "⋯" e Sair no pé. O topo some. */
 var MENU_IC = {
   inicio: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4l8 7v8.5a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"/></svg>',
   cultos: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+  redes: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="3.8"/><path d="M16.8 7.2h.01"/></svg>',
   producao: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="4" width="5" height="16" rx="1.5"/><rect x="9.5" y="4" width="5" height="11" rx="1.5"/><rect x="15.5" y="4" width="5" height="7" rx="1.5"/></svg>',
   equipe: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.8-4.6 5.5-4.6s4.9 1.6 5.5 4.6"/><path d="M16 5.2a3 3 0 0 1 0 5.6M17.5 14.6c1.6.5 2.7 1.9 3 4.4"/></svg>',
   arquivos: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>'
@@ -816,7 +1045,7 @@ function menuDiretor(prox, ant, linha){
   };
   var h = '<div class="navLogo brand" title="Início"><span class="nome">un<i></i></span></div>';
   h += item('data-ini="home"', 'inicio', 'Início', nf, emInicio());
-  h += item('data-pl="calendario"', 'cultos', 'Cultos e eventos', 0, !!ui.cultoId || (!!ui.eventoId && ui.eventoId !== fx.id));
+  h += item('data-pl="calendario"', 'cultos', 'Cultos e eventos', 0, !ui.redes && (!!ui.cultoId || (!!ui.eventoId && ui.eventoId !== fx.id)));
   h += '<div class="navSub"><button class="navNovo" data-pl="novo">+ Novo</button>';
   prox.slice(0, 8).forEach(function(k){ h += linha(k); });
   if (!prox.length) h += '<div class="muted small" style="padding:4px 10px">Nada marcado.</div>';
@@ -826,6 +1055,9 @@ function menuDiretor(prox, ant, linha){
   }
   h += '</div>';
   h += item('data-pl="quadro"', 'producao', 'Produção', aprovar, false);
+  var semana = iso(new Date(Date.now() + 6 * 864e5)), hojeR = hojeISO();
+  var nRedes = redes.posts.filter(function(x){ return x.data >= hojeR && x.data <= semana && redes.estado(x) !== 'publicado'; }).length;
+  h += item('data-nav="redes"', 'redes', 'Redes sociais', nRedes, !!ui.redes);
   h += item('data-nav="equipe"', 'equipe', 'Equipe', 0, false);
   h += item('data-evento="' + fx.id + '"', 'arquivos', 'Arquivos da igreja', 0, ui.eventoId === fx.id);
   h += '<div style="flex:1"></div><div class="navPe"><div class="muted small navConta" id="navConta">' + esc(document.getElementById('modeNote').textContent || (nuvem.user.email || '')) + '</div>' +
@@ -888,6 +1120,7 @@ function renderEditor(){
   var el = document.getElementById('editor');
   var td = ui.tarefaId && nuvem.user && plano.demanda(ui.tarefaId);
   if (td) { el.innerHTML = plano.htmlTarefa(td); return; }
+  if (ui.redes && nuvem.user) { var pp = redes.post(ui.postId); el.innerHTML = pp ? redes.htmlPost(pp) : ''; return; }
   if (ui.eventoId) { el.innerHTML = '<div class="empty small">Toque numa tarefa para ver os detalhes.</div>'; return; }
   var c = culto(), i = item();
   if (!c || !i) { el.innerHTML = c ? '<div class="empty small">Escolha um item do roteiro ou uma tarefa para editar.</div>' : ''; return; }
@@ -1806,10 +2039,11 @@ var plano = {
     }, function(e){ console.warn('eventos', e); plano.erro = true; plano.atualizar(); }));
     plano.parar_.push(F.onSnapshot(F.query(F.collection(fs, 'demandas'), F.where('owner', '==', u)), function(snap){
       var l = []; snap.forEach(function(d){ var x = d.data(); x.id = d.id; l.push(x); });
-      plano.demandas = l; plano.atualizar(); plano.contar();
+      plano.demandas = l; plano.atualizar(); plano.contar(); if (ui.redes) redes.redesenhar();
     }, function(e){ console.warn('demandas', e); plano.erro = true; plano.atualizar(); }));
+    redes.ouvir(F, fs, u);
   },
-  parar: function(){ plano.parar_.forEach(function(f){ try { f(); } catch (e) {} }); plano.parar_ = []; plano.eventos = []; plano.demandas = []; plano.fechar(); },
+  parar: function(){ plano.parar_.forEach(function(f){ try { f(); } catch (e) {} }); plano.parar_ = []; plano.eventos = []; plano.demandas = []; redes.posts = []; plano.fechar(); },
   evento: function(id){ return plano.eventos.find(function(e){ return e.id === id; }) || (nuvem.user && id === 'fixos_' + nuvem.user.uid ? plano.fixos() : null); },
   /* "Arquivos da igreja" (26/11): o que não muda toda semana (abertura, arte da célula, avisos que
    * repetem). É um evento especial (fixo, sem datas) para reaproveitar a página e o "Usar no culto". */
@@ -1831,6 +2065,7 @@ var plano = {
   entrega: function(d){ var p = d.pessoa && equipe.pessoa(d.pessoa); return p && (p.entregas || {})[d.id] || null; },
   /* de onde a tarefa é: nome curto para mostrar */
   origem: function(d){
+    var po = d.post && redes.post(d.post); if (po) return 'Post · ' + (po.titulo || 'Post') + (po.data ? ' ' + po.data.slice(8, 10) + '/' + po.data.slice(5, 7) : '');
     var ev = d.evento && plano.evento(d.evento); if (ev) return ev.nome;
     var c = d.culto && plano.cultoDe(d.culto); if (c) return (c.nome || 'Culto') + (c.data ? ' ' + c.data.slice(8, 10) + '/' + c.data.slice(5, 7) : '');
     return '';
@@ -1865,7 +2100,7 @@ var plano = {
     plano.atualizar(); plano.contar();
   },
   novaTarefa: function(campos){
-    var d = Object.assign({id: uid(), titulo: '', tipo: 'Outro', evento: '', culto: '', pessoa: '', prazo: '', obs: '', estado: 'a_fazer', criadoEm: new Date().toISOString()}, campos);
+    var d = Object.assign({id: uid(), titulo: '', tipo: 'Outro', evento: '', culto: '', post: '', pessoa: '', prazo: '', obs: '', estado: 'a_fazer', criadoEm: new Date().toISOString()}, campos);
     if (!campos.tipo) d.tipo = tipoPeloTitulo(d.titulo);
     plano.salvarDemanda(d, null);
     var p = d.pessoa && equipe.pessoa(d.pessoa);
@@ -1948,7 +2183,9 @@ var plano = {
       db.cultos.filter(function(c){ return !c.data || c.data >= hoje || c.id === d.culto; }).sort(function(a, b){ return (a.data || '9').localeCompare(b.data || '9'); })
         .map(function(c){ return '<option value="c:' + c.id + '"' + (c.id === d.culto ? ' selected' : '') + '>Culto · ' + esc(c.nome || 'Culto') + (c.data ? ' ' + esc(c.data.slice(8, 10) + '/' + c.data.slice(5, 7)) : '') + '</option>'; }).join('') +
       plano.eventos.filter(function(e){ return !e.fim || e.fim >= hoje || e.id === d.evento; })
-        .map(function(e){ return '<option value="e:' + e.id + '"' + (e.id === d.evento ? ' selected' : '') + '>Evento · ' + esc(e.nome) + '</option>'; }).join('');
+        .map(function(e){ return '<option value="e:' + e.id + '"' + (e.id === d.evento ? ' selected' : '') + '>Evento · ' + esc(e.nome) + '</option>'; }).join('') +
+      redes.posts.filter(function(x){ return (x.data || '') >= hoje || x.id === d.post; }).sort(function(a, b){ return (a.data || '9').localeCompare(b.data || '9'); })
+        .map(function(x){ return '<option value="p:' + x.id + '"' + (x.id === d.post ? ' selected' : '') + '>Post · ' + esc(x.titulo || 'Post') + (x.data ? ' ' + esc(x.data.slice(8, 10) + '/' + x.data.slice(5, 7)) : '') + '</option>'; }).join('');
     var h = '<button class="btn link back" data-voltar="roteiro">‹ Voltar</button>' +
       '<div class="row" style="justify-content:space-between"><div class="muted small" style="letter-spacing:.5px">TAREFA</div><span class="estado ' + est + '">' + ESTADO_DEMANDA[est] + '</span></div>' +
       '<div class="field"><label for="tdTitulo">O que precisa ser feito</label><input id="tdTitulo" data-tcampo="titulo" value="' + esc(d.titulo) + '"></div>' +
@@ -1970,7 +2207,7 @@ var plano = {
   mudarTarefa: function(t){
     var d = plano.demanda(ui.tarefaId), c = t.dataset.tcampo; if (!d) return;
     var nv = Object.assign({}, d);
-    if (c === 'de') { var v = t.value; nv.evento = v.slice(0, 2) === 'e:' ? v.slice(2) : ''; nv.culto = v.slice(0, 2) === 'c:' ? v.slice(2) : ''; }
+    if (c === 'de') { var v = t.value; nv.evento = v.slice(0, 2) === 'e:' ? v.slice(2) : ''; nv.culto = v.slice(0, 2) === 'c:' ? v.slice(2) : ''; nv.post = v.slice(0, 2) === 'p:' ? v.slice(2) : ''; }
     else nv[c] = c === 'titulo' || c === 'obs' ? t.value.trim() : t.value;
     if (c === 'titulo' && !nv.titulo) { toast('Escreva o que precisa ser feito.'); t.value = d.titulo; return; }
     plano.salvarDemanda(nv, d);
@@ -1979,8 +2216,9 @@ var plano = {
   abrirTarefa: function(id){
     var d = plano.demanda(id); if (!d) return;
     plano.fechar();
-    if (d.evento && plano.evento(d.evento)) { ui.eventoId = d.evento; ui.cultoId = null; }
-    else if (d.culto && plano.cultoDe(d.culto)) { ui.cultoId = d.culto; ui.eventoId = null; }
+    if (d.post && redes.post(d.post)) { ui.redes = true; ui.postId = d.post; ui.cultoId = null; ui.eventoId = null; }
+    else if (d.evento && plano.evento(d.evento)) { ui.redes = false; ui.eventoId = d.evento; ui.cultoId = null; }
+    else if (d.culto && plano.cultoDe(d.culto)) { ui.redes = false; ui.cultoId = d.culto; ui.eventoId = null; }
     ui.itemId = null; ui.tarefaId = id; ui.view = 'item'; render();
   },
 
@@ -2123,8 +2361,8 @@ var plano = {
     if (a === 'fechar') plano.fechar();
     else if (a === 'aba') { plano.aba = b.dataset.a; plano.desenhar(); }
     else if (a === 'mes') { var d = new Date(+plano.mes.slice(0, 4), +plano.mes.slice(5, 7) - 1 + (+b.dataset.d), 1); plano.mes = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); plano.desenhar(); }
-    else if (a === 'culto') { plano.fechar(); ui.cultoId = b.dataset.id; ui.eventoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; render(); }
-    else if (a === 'evento') { plano.fechar(); ui.eventoId = b.dataset.id; ui.cultoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; render(); }
+    else if (a === 'culto') { plano.fechar(); ui.redes = false; ui.cultoId = b.dataset.id; ui.eventoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; render(); }
+    else if (a === 'evento') { plano.fechar(); ui.redes = false; ui.eventoId = b.dataset.id; ui.cultoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; render(); }
     else if (a === 'tarefa') plano.abrirTarefa(b.dataset.id);
     else if (a === 'calendario') plano.abrir('calendario');
     else if (a === 'quadro') plano.abrir('quadro');
@@ -2394,16 +2632,19 @@ document.addEventListener('click', function(e){
   if (menuEl && !menuEl.contains(e.target)) fecharMenu();
   var t = e.target;
   if (t.closest('#novoCulto')) return novoCulto();
+  var rb2 = t.closest('[data-rp]'); if (rb2) return redes.acao(rb2);
+  if (t.closest('[data-ini],[data-culto],[data-evento]')) ui.redes = false;
   var ib = t.closest('[data-ini]'); if (ib) return inicio.acao(ib);
   var nb = t.closest('[data-nav]');
   if (nb) {
     var na = nb.dataset.nav;
+    if (na === 'redes') { ui.redes = true; ui.cultoId = null; ui.eventoId = null; ui.itemId = null; ui.tarefaId = null; ui.postId = null; ui.view = 'roteiro'; return render(); }
     if (na === 'anteriores') { ui.verAnteriores = !ui.verAnteriores; return renderCultos(); }
     if (na === 'equipe') return equipe.abrir('equipe');
     if (na === 'sair') return document.getElementById('sair').click();
     if (na === 'mais') { var rm = nb.getBoundingClientRect(); return relatos.menu(rm.left, Math.max(10, rm.top - 56)); }
   }
-  if (t.closest('.brand') && nuvem.user) return inicio.acao({dataset: {ini: 'home'}});
+  if (t.closest('.brand') && nuvem.user) { ui.redes = false; return inicio.acao({dataset: {ini: 'home'}}); }
   var cb = t.closest('[data-culto]');
   if (cb) { ui.cultoId = cb.dataset.culto; ui.eventoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; salvar(); return render(); }
   var eb = t.closest('[data-evento]');
@@ -2455,6 +2696,7 @@ document.addEventListener('touchstart', function(e){
 }, {passive: true});
 ['touchend', 'touchmove', 'touchcancel'].forEach(function(n){ document.addEventListener(n, function(){ if (longo) { clearTimeout(longo); longo = null; } }, {passive: true}); });
 
+document.addEventListener('input', function(e){ if (e.target.dataset && e.target.dataset.pcampo) redes.mudar(e.target); });
 document.addEventListener('input', function(e){
   var c = culto(); if (!c) return;
   var id = e.target.id, i = item();
