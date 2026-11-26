@@ -681,7 +681,7 @@ function renderEditor(){
     h += '<div class="field"><label for="iLink">Link do arquivo no Google Drive' + (i.tipo === 'imagem' ? ' · imagem ou PDF (o PDF vira páginas no telão)' : '') + '</label><input id="iLink" inputmode="url" value="' + esc(i.link) + '" placeholder="https://drive.google.com/file/d/...">' +
       '<div class="msg" id="linkMsg"></div>' +
       '<div class="msg muted">No Drive: botão direito no arquivo › Compartilhar › Acesso geral: <b>Qualquer pessoa com o link</b>. Sem isso a Projeção não consegue baixar.</div></div>';
-    if (i.destino === 'midia') h += '<div class="field"><label for="iVertical">Versão vertical (em pé, para a transmissão vertical) · link do Drive</label><input id="iVertical" inputmode="url" value="' + esc(i.vertical || '') + '" placeholder="https://drive.google.com/file/d/..."><div class="msg" id="verticalMsg"></div></div>';
+    if (i.destino === 'midia') h += '<div class="field"><label for="iVertical">Versão vertical (9:16, para a transmissão vertical) · link do Drive</label><input id="iVertical" inputmode="url" value="' + esc(i.vertical || '') + '" placeholder="https://drive.google.com/file/d/..."><div class="msg" id="verticalMsg"></div></div>';
   }
   h += '<div class="field"><label for="iObs">Observação para o operador</label><input id="iObs" value="' + esc(i.obs) + '" placeholder="Ex.: repetir o refrão no fim"></div>';
   el.innerHTML = h;
@@ -1852,7 +1852,7 @@ var plano = {
     var c = culto(); if (!c) return; var ops = [];
     var lista = plano.eventos.filter(function(e){ return e.fixo; }).concat(plano.eventos.filter(function(e){ return !e.fixo; }));
     lista.forEach(function(ev){
-      var links = plano.materiais(ev).map(function(l){ return {t: l.titulo || 'Material', sub: ev.nome + (l.vertical ? ' · deitado e em pé' : ''), f: function(){ plano.usarNoCulto(c.id, l); ui.itemId = c.itens[c.itens.length - 1].id; ui.view = 'item'; render(); }}; });
+      var links = plano.materiais(ev).map(function(l){ return {t: l.titulo || 'Material', sub: ev.nome + (l.vertical ? ' · horizontal e vertical' : ''), f: function(){ plano.usarNoCulto(c.id, l); ui.itemId = c.itens[c.itens.length - 1].id; ui.view = 'item'; render(); }}; });
       if (links.length) { ops.push({cab: ev.nome}); ops = ops.concat(links); }
     });
     escolherDe('Arquivo da igreja ou de evento', ops, 'Nenhum arquivo ainda. Guarde em "Arquivos da igreja" (na agenda) ou na página de cada evento.');
@@ -1903,7 +1903,7 @@ var plano = {
     else if (a === 'usar' && ev) { var mt = plano.materiais(ev)[+b.dataset.m]; if (mt) plano.escolherCulto(mt); }
     else if (a === 'emPe' && ev) {
       var mp = plano.materiais(ev)[+b.dataset.m]; if (!mp) return true;
-      pedirLink('Versão em pé de "' + (mp.titulo || 'Material') + '"', 'Link do Google Drive do arquivo em pé (9:16), para a transmissão vertical. Deixe vazio para tirar.', mp.vertical, function(v){
+      pedirLink('Versão vertical de "' + (mp.titulo || 'Material') + '"', 'Link do Google Drive do arquivo vertical (9:16), para a transmissão vertical. Deixe vazio para tirar.', mp.vertical, function(v){
         ev.verticais = Object.assign({}, ev.verticais || {});
         if (v) ev.verticais[mp.url] = v; else delete ev.verticais[mp.url];
         plano.salvarEvento(ev); renderEvento(); renderCultos();
@@ -1947,7 +1947,7 @@ var plano = {
       var url = document.getElementById('lkU').value.trim(), tl = document.getElementById('lkT').value.trim(); if (!url) return;
       var lv = document.getElementById('lkV'), vurl = lv ? lv.value.trim() : '';
       if (lerDrive(url).estado !== 'ok') { toast('Esse link não parece de um arquivo do Google Drive (pasta não serve).'); return; }
-      if (vurl && lerDrive(vurl).estado !== 'ok') { toast('O link em pé não parece de um arquivo do Google Drive (pasta não serve).'); return; }
+      if (vurl && lerDrive(vurl).estado !== 'ok') { toast('O link vertical não parece de um arquivo do Google Drive (pasta não serve).'); return; }
       ev.links = (ev.links || []).concat([{id: uid(), titulo: tl || 'Material', url: url}]);
       if (vurl) { ev.verticais = Object.assign({}, ev.verticais || {}); ev.verticais[url] = vurl; }
       plano.salvarEvento(ev); renderEvento(); renderCultos();
@@ -1962,15 +1962,15 @@ function renderEvento(){
   var mats = plano.materiais(ev);
   var linhaMat = function(m, i){
     return '<div class="lnk"><a href="' + esc(m.url) + '" target="_blank" rel="noopener">' + esc(m.titulo || 'Material') + ' ↗</a>' + (m.tarefa ? '<span class="muted small">entrega aprovada</span>' : '') +
-      (m.vertical ? '<button class="btn link small" data-pl="emPe" data-m="' + i + '" title="Trocar ou tirar a versão em pé">em pé ✓</button>' : '<button class="btn link small" data-pl="emPe" data-m="' + i + '">+ em pé</button>') +
+      (m.vertical ? '<button class="btn link small" data-pl="emPe" data-m="' + i + '" title="Trocar ou tirar a versão vertical">vertical ✓</button>' : '<button class="btn link small" data-pl="emPe" data-m="' + i + '">+ vertical</button>') +
       '<button class="usar" data-pl="usar" data-m="' + i + '">▶ Usar no culto</button>' + (m.tirar ? '<button class="btn link small" data-pl="tirarLink" data-t="' + m.tirar + '" title="Tirar">×</button>' : '') + '</div>';
   };
-  var formLink = '<form class="addTarefa" data-plform="link"><input id="lkT" placeholder="Nome (ex.: ' + (ev.fixo ? 'Abertura' : 'Arte stories') + ')" autocomplete="off"><input id="lkU" placeholder="Link do Drive · deitado" inputmode="url" autocomplete="off" required><input id="lkV" placeholder="Link do Drive · em pé (opcional)" inputmode="url" autocomplete="off"><button class="btn">Adicionar</button></form>';
+  var formLink = '<form class="addTarefa" data-plform="link"><input id="lkT" placeholder="Nome (ex.: ' + (ev.fixo ? 'Abertura' : 'Arte stories') + ')" autocomplete="off"><input id="lkU" placeholder="Link do Drive · horizontal" inputmode="url" autocomplete="off" required><input id="lkV" placeholder="Link do Drive · vertical (opcional)" inputmode="url" autocomplete="off"><button class="btn">Adicionar</button></form>';
   if (ev.fixo) {
     el.innerHTML = '<button class="btn link back" data-voltar="cultos">‹ Agenda</button>' +
       '<div class="head"><div style="flex:1;min-width:240px"><div class="muted small" style="letter-spacing:.5px">ARQUIVOS DA IGREJA</div><h2 style="margin:4px 0 0">O que se repete</h2>' +
-      '<div class="muted small" style="margin-top:4px">Abertura, arte da célula, avisos que ficam várias semanas. Guarde uma vez (deitado e em pé) e use em qualquer culto.</div></div></div>' +
-      '<div class="secao"><div class="lblSec">Arquivos</div>' + (mats.length ? mats.map(linhaMat).join('') : '<div class="muted small">Nenhum arquivo ainda. Cole abaixo o link do Drive (e o em pé, se tiver).</div>') + formLink + '</div>';
+      '<div class="muted small" style="margin-top:4px">Abertura, arte da célula, avisos que ficam várias semanas. Guarde uma vez (horizontal e vertical) e use em qualquer culto.</div></div></div>' +
+      '<div class="secao"><div class="lblSec">Arquivos</div>' + (mats.length ? mats.map(linhaMat).join('') : '<div class="muted small">Nenhum arquivo ainda. Cole abaixo o link do Drive (e o vertical, se tiver).</div>') + formLink + '</div>';
     return;
   }
   var h = '<button class="btn link back" data-voltar="cultos">‹ Agenda</button>' +
