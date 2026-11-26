@@ -141,6 +141,30 @@ label.cfRow{cursor:pointer}label.cfRow input{margin:3px 0 0;width:16px;height:16
 .eqRow{display:grid;grid-template-columns:minmax(140px,1.2fr) minmax(130px,1fr) minmax(0,2fr) auto;gap:10px;align-items:center;border-top:1px solid var(--line);padding:10px 0}
 .eqRow input{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:8px 10px;width:100%;min-height:40px}
 .fchips{display:flex;flex-wrap:wrap;gap:6px}
+/* tela de início */
+.cols.inicio{grid-template-columns:260px 1fr}
+.cols.inicio aside.editor{display:none}
+.brand{cursor:pointer}
+.ini{display:flex;flex-direction:column;gap:16px;max-width:980px}
+.iniTopo{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.iniNome{font-size:24px;font-weight:700;margin-top:2px}
+.iniChip{border:1px solid var(--line2);border-radius:20px;padding:4px 11px;font-size:12px;color:var(--text)}
+.iniPend{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.iniPendT{display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--line);font-weight:600}
+.iniItem{display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.iniItem:last-child{border-bottom:0}
+.iniTx{flex:1;min-width:0}
+.iniTx .small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.iniIc{color:var(--muted);display:flex}
+.iniIc.urg,.urg{color:var(--red)}
+.iniItem .btn{min-height:34px;white-space:nowrap}
+.iniOk{padding:16px 14px;color:var(--text)}
+.iniGrade{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.iniBloco{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.iniBloco .lblSec{margin-bottom:6px}
+.iniLinha{display:flex;justify-content:space-between;gap:10px;background:transparent;border:0;border-radius:6px;padding:6px 6px;margin:0 -6px;text-align:left;font-size:13px}
+.iniLinha:hover{background:var(--panel2)}
+.iniVazio{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
 .fchips button{background:var(--panel2);border:1px solid var(--line2);border-radius:16px;padding:4px 10px;font-size:13px}
 .fchips button.on{background:var(--blue);border-color:var(--blue);color:#fff}
 .vaga{display:grid;grid-template-columns:minmax(120px,1fr) minmax(180px,2fr) auto auto auto;gap:8px;align-items:center;border-top:1px solid var(--line);padding:8px 0}
@@ -464,7 +488,8 @@ function iniciarNuvem(cfg){
         try { teste = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
         db = {cultos: lista};
         if (!ui.cultoId || !culto()) ui.cultoId = null;
-        if (ui.cultoId && innerWidth > 900) ui.view = 'roteiro';
+        /* Sem culto escolhido abre na tela de início (também no celular). */
+        if (!ui.cultoId || innerWidth > 900) ui.view = 'roteiro';
         aviso('Salvo'); render();
         /* Primeira vez na conta: oferece levar os cultos do modo de teste deste navegador. */
         if (!lista.length && teste && teste.cultos && teste.cultos.length) {
@@ -545,10 +570,173 @@ function resumoTipo(i){
 
 function render(){
   document.getElementById('app').dataset.view = ui.view;
+  var casa = emInicio();
+  /* Na tela de início o painel do meio ocupa também a coluna da direita (menos com uma tarefa aberta). */
+  document.querySelector('.cols').classList.toggle('inicio', casa && !ui.tarefaId);
   renderCultos();
-  if (ui.eventoId && nuvem.user) renderEvento(); else renderRoteiro();
+  if (ui.eventoId && nuvem.user) renderEvento(); else if (casa) renderInicio(); else renderRoteiro();
   renderEditor();
 }
+
+/* ---------------- tela de início "Pronto para o culto?" (26/11) ----------------
+ * O Diretor abre aqui (sem culto nem evento escolhido). Responde: o próximo culto está pronto? o
+ * que precisa de mim? o que vem aí? Cada pendência tem um botão que leva para onde se resolve.
+ * Só equipe de mídia (transmissão, tela, foto, vídeo, design). Vermelho só no que é urgente. */
+var DIAS_LONGOS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+function emInicio(){ return !!nuvem.user && !ui.cultoId && !ui.eventoId; }
+var inicio = {
+  dias: function(data){
+    var n = Math.round((new Date(data + 'T12:00') - new Date(hojeISO() + 'T12:00')) / 864e5);
+    return n === 0 ? 'hoje' : n === 1 ? 'amanhã' : 'em ' + n + ' dias';
+  },
+  proximo: function(){
+    var hoje = hojeISO();
+    /* Culto de hoje deixa de ser o próximo 4 horas depois do horário (já aconteceu). */
+    var agora = new Date(), acabou = function(c){ return c.data === hoje && /^\d\d:\d\d$/.test(c.hora || '') && agora.getHours() * 60 + agora.getMinutes() > parseInt(c.hora.slice(0, 2), 10) * 60 + parseInt(c.hora.slice(3, 5), 10) + 240; };
+    return db.cultos.filter(function(c){ return c.data && c.data >= hoje && !acabou(c); })
+      .sort(function(a, b){ return (a.data + (a.hora || '')).localeCompare(b.data + (b.hora || '')); })[0] || null;
+  },
+  anterior: function(){
+    var hoje = hojeISO();
+    var prox = inicio.proximo();
+    return db.cultos.filter(function(c){ return c.data && c.data <= hoje && (!prox || c.id !== prox.id) && (c.data < hoje || !prox || prox.data > hoje || c.hora < prox.hora); }).sort(function(a, b){ return (b.data + (b.hora || '')).localeCompare(a.data + (a.hora || '')); })[0] || null;
+  },
+  nome: function(id){ var p = equipe.pessoa(id); return p ? (p.nome || '').split(' ')[0] : ''; },
+  /* O que precisa do diretor: [{icone, texto, sub, botao, acao, dados, urgente, principal}] */
+  pendencias: function(c){
+    var l = [], hoje = hojeISO();
+    if (c) {
+      var semVertical = [], semArquivo = [];
+      c.itens.forEach(function(i){
+        var nome = i.titulo || TIPOS[i.tipo].nome;
+        if (i.tipo === 'imagem' || i.tipo === 'video') {
+          if (lerDrive(i.link).estado !== 'ok') semArquivo.push({i: i, nome: nome});
+          else if (i.destino === 'midia' && lerDrive(i.vertical).estado !== 'ok') semVertical.push({i: i, nome: nome});
+        } else if (i.tipo === 'texto' && !(i.letra || '').trim()) semArquivo.push({i: i, nome: nome});
+      });
+      if (!c.itens.length) l.push({icone: 'list', texto: 'Roteiro vazio', sub: 'Monte o roteiro do culto', botao: 'Abrir roteiro', acao: 'culto', dados: c.id});
+      if (semVertical.length) l.push({icone: 'mobile', texto: semVertical.length === 1 ? '1 item sem versão vertical' : semVertical.length + ' itens sem versão vertical',
+        sub: semVertical.map(function(x){ return x.nome; }).join(' · '), botao: 'Colocar vertical', acao: 'item', dados: c.id + '|' + semVertical[0].i.id, principal: true});
+      if (semArquivo.length) l.push({icone: 'file', texto: semArquivo.length === 1 ? '1 item sem arquivo ou texto' : semArquivo.length + ' itens sem arquivo ou texto',
+        sub: semArquivo.map(function(x){ return x.nome; }).join(' · '), botao: 'Abrir', acao: 'item', dados: c.id + '|' + semArquivo[0].i.id});
+      if (equipe.pessoas.length) {
+        var vagas = equipe.vagas(c), ocupados = vagas.filter(function(v){ return v.pessoa; }).map(function(v){ return v.pessoa; });
+        vagas.forEach(function(v){
+          var est = equipe.estado(c, v);
+          if (est === 'vazio') {
+            var livres = equipe.pessoas.filter(function(p){ return (p.funcoes || []).indexOf(v.funcao) >= 0 && (p.indisponivel || []).indexOf(c.data) < 0 && ocupados.indexOf(p.id) < 0; }).length;
+            l.push({icone: 'users', texto: v.funcao + ' sem ninguém', sub: livres ? (livres === 1 ? '1 pessoa livre que faz ' : livres + ' pessoas livres que fazem ') + v.funcao.toLowerCase() : 'Ninguém livre que faz ' + v.funcao.toLowerCase(),
+              botao: 'Escalar', acao: 'escala', dados: c.id, urgente: true});
+          } else if (est === 'recusado') {
+            var p = equipe.pessoa(v.pessoa), r = p && (p.respostas || {})[equipe.chave(c, v)];
+            l.push({icone: 'users', texto: inicio.nome(v.pessoa) + ' não pode (' + v.funcao + ')', sub: r && r.motivo ? r.motivo : 'Escolha outra pessoa', botao: 'Trocar', acao: 'escala', dados: c.id, urgente: true});
+          }
+        });
+      }
+    }
+    plano.demandas.forEach(function(d){
+      var est = plano.estado(d);
+      if (est === 'para_aprovar') l.push({icone: 'check', texto: d.titulo + ' esperando aprovação', sub: (inicio.nome(d.pessoa) || 'Alguém') + ' mandou' + (plano.origem(d) ? ' · ' + plano.origem(d) : ''), botao: 'Ver', acao: 'tarefa', dados: d.id});
+      else if (est !== 'pronto' && d.prazo && d.prazo < hoje) l.push({icone: 'clock', texto: d.titulo + ' atrasada', sub: (inicio.nome(d.pessoa) || 'Sem responsável') + ' · prazo ' + d.prazo.slice(8, 10) + '/' + d.prazo.slice(5, 7), botao: 'Ver', acao: 'tarefa', dados: d.id, urgente: true});
+    });
+    if (c && c.itens.length) {
+      var u = ultima(c);
+      if (!u || mudou(c)) l.push({icone: 'send', texto: u ? 'Mudou depois da v' + u.n + ': falta publicar' : 'Ainda não publicado', sub: 'O somun tela recebe quando você publica', botao: 'Abrir roteiro', acao: 'culto', dados: c.id});
+    }
+    return l;
+  },
+  ICONES: {
+    mobile: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></svg>',
+    users: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.8-4.6 5.5-4.6s4.9 1.6 5.5 4.6"/><path d="M16 5.2a3 3 0 0 1 0 5.6M17.5 14.6c1.6.5 2.7 1.9 3 4.4"/></svg>',
+    check: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+    file: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-10z"/><path d="M14 3.5v5h5"/></svg>',
+    list: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>',
+    send: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 3.5 10 14M20.5 3.5 14 20.5l-4-6.5-6.5-4z"/></svg>'
+  },
+  /* Etiquetas do andamento do culto. */
+  etiquetas: function(c){
+    var t = [];
+    t.push(c.itens.length ? 'Roteiro ✓ · ' + c.itens.length + (c.itens.length === 1 ? ' item' : ' itens') : 'Roteiro vazio');
+    if (equipe.pessoas.length) {
+      var vagas = equipe.vagas(c), cheias = vagas.filter(function(v){ var e = equipe.estado(c, v); return e !== 'vazio' && e !== 'recusado'; }).length;
+      t.push('Escala ' + cheias + '/' + vagas.length);
+    }
+    var midia = c.itens.filter(function(i){ return (i.tipo === 'imagem' || i.tipo === 'video') && i.destino === 'midia'; });
+    if (midia.length) t.push('Verticais ' + midia.filter(function(i){ return lerDrive(i.vertical).estado === 'ok'; }).length + '/' + midia.length);
+    var arq = c.itens.filter(function(i){ return i.tipo === 'imagem' || i.tipo === 'video'; });
+    if (arq.length) t.push('Arquivos ' + arq.filter(function(i){ return lerDrive(i.link).estado === 'ok'; }).length + '/' + arq.length);
+    var u = ultima(c);
+    t.push(!u ? 'Não publicado' : mudou(c) ? 'v' + u.n + ' + alterações' : 'Publicado v' + u.n);
+    return t;
+  },
+  posCulto: function(){
+    var c = inicio.anterior(); if (!c) return '';
+    var l = plano.tarefasDe('culto', c.id);
+    var h = '<div class="iniBloco"><div class="lblSec">Pós-culto · ' + esc(c.nome || 'Culto') + ' ' + esc(c.data.slice(8, 10) + '/' + c.data.slice(5, 7)) + '</div>';
+    if (!l.length) h += '<div class="muted small">Nenhuma tarefa de depois do culto (fotos, cortes). Crie no roteiro desse culto.</div>';
+    l.slice(0, 5).forEach(function(d){
+      var est = plano.estado(d);
+      h += '<button class="iniLinha" data-ini="tarefa" data-d="' + esc(d.id) + '"><span>' + esc(d.titulo) + '</span><span class="muted">' + (est === 'pronto' ? '✓ ' : '') + esc((inicio.nome(d.pessoa) || 'sem responsável') + (est === 'pronto' ? '' : ' · ' + (ESTADO_DEMANDA[est] || est).toLowerCase())) + '</span></button>';
+    });
+    return h + '</div>';
+  },
+  vemAi: function(prox){
+    var hoje = hojeISO(), ate = iso(new Date(Date.now() + 60 * 864e5)), linhas = [];
+    db.cultos.filter(function(c){ return c.data && c.data >= hoje && c.data <= ate && (!prox || c.id !== prox.id); })
+      .sort(function(a, b){ return a.data.localeCompare(b.data); }).slice(0, 3)
+      .forEach(function(c){ linhas.push({data: c.data, html: '<button class="iniLinha" data-ini="culto" data-d="' + esc(c.id) + '"><span>' + esc(c.nome || 'Culto') + '</span><span class="muted">' + esc(c.data.slice(8, 10) + '/' + c.data.slice(5, 7)) + '</span></button>'}); });
+    plano.eventos.forEach(function(ev){
+      if (ev.fixo) return;
+      var semNinguem = plano.tarefasDe('evento', ev.id).filter(function(d){ return !d.pessoa && plano.estado(d) !== 'pronto'; }).length;
+      if (ev.inicio && ev.inicio >= hoje && ev.inicio <= ate)
+        linhas.push({data: ev.inicio, html: '<button class="iniLinha" data-ini="evento" data-d="' + esc(ev.id) + '"><span>' + esc(ev.nome) + (semNinguem ? ' <span class="urg">· ' + semNinguem + (semNinguem === 1 ? ' tarefa sem responsável' : ' tarefas sem responsável') + '</span>' : '') + '</span><span class="muted">' + esc(ev.inicio.slice(8, 10) + '/' + ev.inicio.slice(5, 7)) + '</span></button>'});
+      (ev.marcos || []).forEach(function(mk){
+        if (mk.data && mk.data >= hoje && mk.data <= ate)
+          linhas.push({data: mk.data, html: '<button class="iniLinha" data-ini="evento" data-d="' + esc(ev.id) + '"><span>' + esc(mk.nome) + ' <span class="muted">· ' + esc(ev.nome) + '</span></span><span class="muted">' + esc(mk.data.slice(8, 10) + '/' + mk.data.slice(5, 7)) + '</span></button>'});
+      });
+    });
+    linhas.sort(function(a, b){ return a.data.localeCompare(b.data); });
+    return '<div class="iniBloco"><div class="lblSec">Vem aí</div>' + (linhas.length ? linhas.slice(0, 6).map(function(x){ return x.html; }).join('') : '<div class="muted small">Nada marcado nos próximos 60 dias.</div>') + '</div>';
+  },
+  acao: function(b){
+    var d = b.dataset.d || '';
+    var a = b.dataset.ini;
+    if (a === 'home') { ui.cultoId = null; ui.eventoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; return render(); }
+    if (a === 'novo') return novoCulto();
+    if (a === 'culto') { ui.cultoId = d; ui.eventoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; return render(); }
+    if (a === 'item') { var p = d.split('|'); ui.cultoId = p[0]; ui.eventoId = null; ui.itemId = p[1]; ui.tarefaId = null; ui.view = 'item'; render();
+      var f = document.getElementById('iVertical') || document.getElementById('iLink') || document.getElementById('iLetra'); if (f) f.focus(); return; }
+    if (a === 'escala') { ui.cultoId = d; ui.eventoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; render(); return equipe.abrir('escala'); }
+    if (a === 'tarefa') return plano.abrirTarefa(d);
+    if (a === 'evento') { ui.eventoId = d; ui.cultoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; return render(); }
+  }
+};
+function renderInicio(){
+  var el = document.getElementById('roteiro'), c = inicio.proximo();
+  var h = '<div class="ini" id="iniBox"><button class="btn link back" data-voltar="cultos" style="align-self:flex-start">‹ Agenda</button>';
+  if (!c) {
+    h += '<div class="lblSec">Próximo culto</div><div class="iniVazio"><div style="font-size:19px;font-weight:700">Nenhum culto marcado</div>' +
+      '<div class="muted small">Marque o próximo culto para montar o roteiro, a escala e as artes.</div><button class="btn primary" data-ini="novo" style="margin-top:10px">+ Novo culto</button></div>';
+  } else {
+    h += '<div class="iniTopo"><div><div class="lblSec">Próximo culto · ' + esc(inicio.dias(c.data)) + '</div>' +
+      '<div class="iniNome">' + esc(c.nome || 'Culto') + '</div><div class="muted">' + esc(quando(c.data, c.hora)) + '</div></div>' +
+      '<button class="btn" data-ini="culto" data-d="' + esc(c.id) + '">Abrir roteiro</button></div>' +
+      '<div class="fchips iniChips">' + inicio.etiquetas(c).map(function(t){ return '<span class="iniChip">' + esc(t) + '</span>'; }).join('') + '</div>';
+  }
+  var pend = inicio.pendencias(c);
+  h += '<div class="iniPend"><div class="iniPendT"><span>Precisa de você</span><span class="muted">' + (pend.length || '') + '</span></div>';
+  if (!pend.length) h += '<div class="iniOk">' + (c ? 'Tudo pronto para ' + esc(inicio.dias(c.data) === 'hoje' ? 'hoje' : DIAS_LONGOS[new Date(c.data + 'T12:00').getDay()]) + ' ✓' : 'Nada pendente ✓') + '</div>';
+  pend.forEach(function(p){
+    h += '<div class="iniItem"><span class="iniIc' + (p.urgente ? ' urg' : '') + '">' + inicio.ICONES[p.icone] + '</span>' +
+      '<div class="iniTx"><div>' + esc(p.texto) + '</div>' + (p.sub ? '<div class="muted small">' + esc(p.sub) + '</div>' : '') + '</div>' +
+      '<button class="btn small' + (p.principal ? ' primary' : '') + '" data-ini="' + p.acao + '" data-d="' + esc(p.dados) + '">' + esc(p.botao) + '</button></div>';
+  });
+  h += '</div><div class="iniGrade">' + inicio.posCulto() + inicio.vemAi(c) + '</div></div>';
+  el.innerHTML = h;
+}
+/* Quantas coisas faltam (para a linha "Início" da agenda). */
+function faltamInicio(){ return nuvem.user ? inicio.pendencias(inicio.proximo()).length : 0; }
 
 /* Agenda: cultos e eventos juntos. Primeiro os próximos (do mais perto ao mais longe), depois os anteriores. */
 function renderCultos(){
@@ -574,6 +762,8 @@ function renderCultos(){
       '<div class="s">' + esc(dt) + (ab ? ' · ' + ab + ' tarefa' + (ab === 1 ? '' : 's') : '') + (ap ? ' · <span class="warnTxt">' + ap + ' para aprovar</span>' : '') + '</div></button>';
   };
   if (nuvem.user) {
+    var nf = faltamInicio();
+    h += '<button class="culto' + (emInicio() ? ' on' : '') + '" data-ini="home"><div class="t">Início</div><div class="s">' + (nf ? nf + (nf === 1 ? ' coisa falta' : ' coisas faltam') : 'tudo em dia') + '</div></button>';
     var fx = plano.fixos(), nfx = plano.materiais(fx).length;
     h += '<button class="culto ev' + (fx.id === ui.eventoId ? ' on' : '') + '" data-evento="' + fx.id + '">' +
       '<div class="t">Arquivos da igreja</div><div class="s">' + (nfx ? nfx + (nfx === 1 ? ' arquivo' : ' arquivos') : 'Abertura, célula, avisos que repetem') + '</div></button>';
@@ -590,6 +780,7 @@ function renderCultos(){
   if (ant.length) { mes = null; h += '<div class="lblSec" style="margin:22px 6px 0">Anteriores</div>'; bloco(ant); }
   if (!coisas.length) h += '<div class="empty small">Nada na agenda ainda.<br>Comece em "+ Novo".</div>';
   el.innerHTML = h;
+  if (emInicio() && document.getElementById('iniBox')) renderInicio();
 }
 
 function renderRoteiro(){
@@ -2152,6 +2343,8 @@ document.addEventListener('click', function(e){
   if (menuEl && !menuEl.contains(e.target)) fecharMenu();
   var t = e.target;
   if (t.closest('#novoCulto')) return novoCulto();
+  var ib = t.closest('[data-ini]'); if (ib) return inicio.acao(ib);
+  if (t.closest('.brand') && nuvem.user) return inicio.acao({dataset: {ini: 'home'}});
   var cb = t.closest('[data-culto]');
   if (cb) { ui.cultoId = cb.dataset.culto; ui.eventoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; salvar(); return render(); }
   var eb = t.closest('[data-evento]');
