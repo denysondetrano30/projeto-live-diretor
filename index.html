@@ -178,9 +178,11 @@ label.cfRow{cursor:pointer}label.cfRow input{margin:3px 0 0;width:16px;height:16
 .diaMais:hover{color:var(--text)}
 .peca{display:flex;justify-content:space-between;gap:8px;width:100%;text-align:left;background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:13px}
 .peca .muted{font-size:12px;text-align:right}
-.addPeca{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.addPeca input,.addPeca select{background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:8px;min-width:0}
-.addPeca input:first-child{grid-column:1/3}
+.addPeca{display:flex;flex-direction:column;gap:8px;border:1px dashed var(--line2);border-radius:10px;padding:10px 12px}
+.addPecaT{font-weight:600;font-size:13px}
+.addPeca label{display:flex;flex-direction:column;gap:4px;color:var(--muted);font-size:12px;flex:1;min-width:0}
+.addPecaL{display:flex;gap:8px;flex-wrap:wrap}
+.addPeca input,.addPeca select{background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:8px;min-width:0;color:var(--text)}
 @media (max-width: 900px){ .semana{grid-template-columns:1fr} .dia{min-height:0} }
 /* tela de início */
 .cols.inicio{grid-template-columns:260px 1fr}
@@ -958,15 +960,20 @@ var redes = {
       '<div class="field"><label for="pData">Dia de postar</label><input id="pData" type="date" data-pcampo="data" value="' + esc(p.data || '') + '" style="color-scheme:dark"></div>' +
       '<div class="field"><label for="pHora">Hora</label><input id="pHora" type="time" data-pcampo="hora" value="' + esc(p.hora || '') + '" style="color-scheme:dark"></div></div>' +
       '<div class="field"><label for="pLegenda">Legenda <button class="btn link small" data-rp="copiar" style="float:right;min-height:0">Copiar legenda</button></label><textarea id="pLegenda" data-pcampo="legenda" style="min-height:110px" placeholder="O texto que vai junto do post.">' + esc(p.legenda || '') + '</textarea></div>' +
-      '<div class="field"><label>Peças · tarefas da Produção (a pessoa entrega pelo link pessoal)</label>';
+      '<div class="field"><label>Quem produz o quê</label>';
     l.sort(function(a, b){ return (a.prazo || '9').localeCompare(b.prazo || '9'); }).forEach(function(d){
       var e = plano.estado(d), atr = d.prazo && d.prazo < hoje && e !== 'pronto';
       h += '<button class="peca" data-pl="tarefa" data-id="' + esc(d.id) + '"><span>' + esc(d.titulo) + '</span><span class="muted' + (atr ? ' urg' : '') + '">' +
         esc((inicio.nome(d.pessoa) || 'sem responsável') + (d.prazo ? ' · ' + (atr ? 'venceu ' : 'até ') + d.prazo.slice(8, 10) + '/' + d.prazo.slice(5, 7) : '') + ' · ' + ESTADO_DEMANDA[e].toLowerCase()) + '</span></button>';
     });
-    if (!l.length) h += '<div class="muted small" style="margin-bottom:6px">Sem peças: o post fica como "ideia" até você marcar pronto, ou até as peças serem aprovadas.</div>';
-    h += '<div class="addPeca"><input id="pcT" placeholder="Ex.: Arte do carrossel" autocomplete="off"><select id="pcP" aria-label="Quem faz">' + pessoas + '</select>' +
-      '<input id="pcD" type="date" value="' + esc(prazo) + '" aria-label="Prazo" style="color-scheme:dark"><button class="btn" data-rp="addPeca">+ Peça</button></div></div>';
+    if (!l.length) h += '<div class="muted small" style="margin-bottom:6px">Ninguém produzindo ainda. Diga abaixo o que precisa ser feito e quem faz.</div>';
+    /* Caixa separada e com rótulos: só vira tarefa ao clicar em "Mandar para a pessoa" (ela recebe no link pessoal). */
+    h += '<div class="addPeca"><div class="addPecaT">Nova peça</div>' +
+      '<label>O que fazer<input id="pcT" placeholder="Ex.: Arte do carrossel, edição do vídeo" autocomplete="off"></label>' +
+      '<div class="addPecaL"><label>Quem faz<select id="pcP">' + pessoas + '</select></label>' +
+      '<label>Entregar até<input id="pcD" type="date" value="' + esc(prazo) + '" style="color-scheme:dark"></label></div>' +
+      '<button class="btn primary" data-rp="addPeca">Mandar para a pessoa</button>' +
+      '<div class="muted small">Vira uma tarefa na Produção e aparece no link pessoal de quem faz. O prazo já vem ' + PRAZO_ANTES + ' dias antes da postagem.</div></div></div>';
     if (!l.length && est !== 'publicado') h += '<div class="fchips"><button class="' + (est === 'ideia' ? 'sim' : '') + '" data-rp="estado" data-e="ideia">Ideia</button><button class="' + (est === 'pronto' ? 'sim' : '') + '" data-rp="estado" data-e="pronto">Pronto para postar</button></div>';
     h += '<div class="field"><label>Publicado</label><div class="fchips">' + (p.redes || []).map(function(r){
       var feito = (p.publicado || {})[r];
@@ -995,9 +1002,12 @@ var redes = {
     else if (a === 'publicado') { p.publicado = Object.assign({}, p.publicado || {}); var rr = b.dataset.r; if (p.publicado[rr]) delete p.publicado[rr]; else p.publicado[rr] = new Date().toISOString(); }
     else if (a === 'copiar') { try { navigator.clipboard.writeText(p.legenda || ''); toast('Legenda copiada.'); } catch (e) {} return; }
     else if (a === 'addPeca') {
-      var t = document.getElementById('pcT').value.trim(); if (!t) { toast('Escreva qual peça (ex.: Arte do carrossel).'); return; }
-      plano.novaTarefa({titulo: t, pessoa: document.getElementById('pcP').value, prazo: document.getElementById('pcD').value, post: p.id});
-      return redes.redesenhar();
+      var t = document.getElementById('pcT').value.trim(); if (!t) { toast('Escreva o que precisa ser feito (ex.: Arte do carrossel).'); document.getElementById('pcT').focus(); return; }
+      var quem = document.getElementById('pcP').value;
+      plano.novaTarefa({titulo: t, pessoa: quem, prazo: document.getElementById('pcD').value, post: p.id});
+      redes.redesenhar(); renderEditor();
+      toast('"' + t + '" foi para ' + (quem ? inicio.nome(quem) : 'a Produção (sem responsável)') + '.');
+      return;
     } else if (a === 'apagar') return dialogo('Apagar o post "' + esc(p.titulo) + '"?', 'As peças dele continuam na Produção, soltas.', 'Apagar', function(){
       redes.posts = redes.posts.filter(function(x){ return x.id !== p.id; });
       nuvem.m.deleteDoc(nuvem.m.doc(nuvem.fs, 'posts', p.id)).catch(function(e){ console.warn(e); });
@@ -2638,7 +2648,7 @@ document.addEventListener('click', function(e){
   var nb = t.closest('[data-nav]');
   if (nb) {
     var na = nb.dataset.nav;
-    if (na === 'redes') { ui.redes = true; ui.cultoId = null; ui.eventoId = null; ui.itemId = null; ui.tarefaId = null; ui.postId = null; ui.view = 'roteiro'; return render(); }
+    if (na === 'redes') { ui.redes = true; ui.semana = null; ui.cultoId = null; ui.eventoId = null; ui.itemId = null; ui.tarefaId = null; ui.postId = null; ui.view = 'roteiro'; return render(); }
     if (na === 'anteriores') { ui.verAnteriores = !ui.verAnteriores; return renderCultos(); }
     if (na === 'equipe') return equipe.abrir('equipe');
     if (na === 'sair') return document.getElementById('sair').click();
@@ -2697,6 +2707,7 @@ document.addEventListener('touchstart', function(e){
 ['touchend', 'touchmove', 'touchcancel'].forEach(function(n){ document.addEventListener(n, function(){ if (longo) { clearTimeout(longo); longo = null; } }, {passive: true}); });
 
 document.addEventListener('input', function(e){ if (e.target.dataset && e.target.dataset.pcampo) redes.mudar(e.target); });
+document.addEventListener('keydown', function(e){ if (e.key === 'Enter' && e.target.id === 'pcT') { var b = document.querySelector('[data-rp="addPeca"]'); if (b) b.click(); } });
 document.addEventListener('input', function(e){
   var c = culto(); if (!c) return;
   var id = e.target.id, i = item();
