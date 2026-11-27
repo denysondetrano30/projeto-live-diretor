@@ -625,6 +625,62 @@ function render(){
   renderEditor();
 }
 
+/* ---------------- pedir versão vertical num clique (27/11) ----------------
+ * Item do culto que vai para a transmissão sem a versão vertical: "Pedir vertical" cria uma tarefa
+ * da Produção para quem faz (com o link da arte horizontal de base) e guarda {culto, item} na tarefa
+ * (campo paraVertical). Quando o diretor aprova a entrega, o link entra sozinho no item (i.vertical). */
+var vert = {
+  pedido: function(c, i){
+    return plano.demandas.find(function(d){ return d.paraVertical && d.paraVertical.culto === c.id && d.paraVertical.item === i.id && plano.estado(d) !== 'pronto'; }) || null;
+  },
+  faltando: function(c){
+    return c.itens.filter(function(i){ return (i.tipo === 'imagem' || i.tipo === 'video') && i.destino === 'midia' && lerDrive(i.link).estado === 'ok' && lerDrive(i.vertical).estado !== 'ok'; });
+  },
+  /* Janela: quem faz e até quando; uma tarefa por item. */
+  pedir: function(cultoId, itemIds){
+    var c = plano.cultoDe(cultoId); if (!c) return;
+    var itens = c.itens.filter(function(i){ return itemIds.indexOf(i.id) >= 0 && !vert.pedido(c, i); });
+    if (!itens.length) { toast('Já foi pedida.'); return; }
+    var prazo = c.data ? iso(new Date(new Date(c.data + 'T12:00').getTime() - 2 * 864e5)) : '';
+    if (prazo && prazo < hojeISO()) prazo = hojeISO();
+    var ultimo = ''; try { ultimo = localStorage.getItem(KEY + '-vertPessoa') || ''; } catch (e) {}
+    if (!equipe.pessoa(ultimo)) ultimo = (equipe.pessoas.find(function(p){ return (p.funcoes || []).some(function(f){ return /design|arte/i.test(f); }); }) || {}).id || '';
+    var bg = document.createElement('div'); bg.className = 'dialogBg';
+    bg.innerHTML = '<div class="dialog" role="dialog" aria-modal="true"><div style="font-weight:700;font-size:16px">Pedir versão vertical</div>' +
+      '<div class="muted small" style="line-height:1.5">' + itens.map(function(i){ return esc(i.titulo || TIPOS[i.tipo].nome); }).join(' · ') + ' · ' + esc(c.nome || 'Culto') + '</div>' +
+      '<label class="muted small" style="display:flex;flex-direction:column;gap:4px">Quem faz<select id="vtP" style="background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:8px;color:var(--text)"><option value="">— ninguém (fica na Produção) —</option>' +
+        equipe.pessoas.map(function(p){ return '<option value="' + esc(p.id) + '"' + (p.id === ultimo ? ' selected' : '') + '>' + esc(p.nome || 'Sem nome') + '</option>'; }).join('') + '</select></label>' +
+      '<label class="muted small" style="display:flex;flex-direction:column;gap:4px">Entregar até<input id="vtD" type="date" value="' + esc(prazo) + '" style="background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:8px;color:var(--text);color-scheme:dark"></label>' +
+      '<div class="muted small">Vai com o link da arte horizontal. Quando você aprovar a entrega, o link vertical entra sozinho no item.</div>' +
+      '<div class="row"><button class="btn" data-x>Cancelar</button><button class="btn primary" data-ok>Pedir</button></div></div>';
+    document.body.appendChild(bg);
+    bg.querySelector('[data-x]').onclick = function(){ bg.remove(); };
+    bg.addEventListener('click', function(e){ if (e.target === bg) bg.remove(); });
+    bg.querySelector('[data-ok]').onclick = function(){
+      var quem = bg.querySelector('#vtP').value, ate = bg.querySelector('#vtD').value; bg.remove();
+      try { if (quem) localStorage.setItem(KEY + '-vertPessoa', quem); } catch (e) {}
+      itens.forEach(function(i, k){
+        var d = {titulo: 'Versão vertical: ' + (i.titulo || TIPOS[i.tipo].nome), tipo: i.tipo === 'video' ? 'Vídeo' : 'Arte', culto: c.id, pessoa: quem, prazo: ate,
+          obs: 'Versão vertical (9:16) desta arte: ' + i.link, paraVertical: {culto: c.id, item: i.id}};
+        /* Só a primeira pergunta se avisa no WhatsApp (uma mensagem por pedido). */
+        if (k === 0) plano.novaTarefa(d); else plano.salvarDemanda(Object.assign({id: uid(), evento: '', post: '', estado: 'a_fazer', criadoEm: new Date().toISOString()}, d), null);
+      });
+      toast(itens.length === 1 ? 'Pedida para ' + (quem ? inicio.nome(quem) : 'a Produção') + '.' : itens.length + ' versões pedidas para ' + (quem ? inicio.nome(quem) : 'a Produção') + '.');
+      render();
+    };
+  },
+  /* Aprovou a entrega: o link vai para o item do culto. */
+  aprovada: function(d){
+    if (!d.paraVertical) return '';
+    var en = plano.entrega(d), c = plano.cultoDe(d.paraVertical.culto), i = c && c.itens.find(function(x){ return x.id === d.paraVertical.item; });
+    if (!en || !en.url || !i) return '';
+    if (lerDrive(en.url).estado !== 'ok') return ' O link entregue não é de arquivo do Drive: cole a versão vertical no item à mão.';
+    i.vertical = en.url; store.save(db); if (nuvem.user) nuvem.agendar(c.id);
+    if (ui.cultoId === c.id) { renderRoteiro(); renderEditor(); }
+    return ' A versão vertical entrou em "' + (i.titulo || 'item') + '". Publique o culto para ir ao somun tela.';
+  }
+};
+
 /* ---------------- tela de início "Pronto para o culto?" (26/11) ----------------
  * O Diretor abre aqui (sem culto nem evento escolhido). Responde: o próximo culto está pronto? o
  * que precisa de mim? o que vem aí? Cada pendência tem um botão que leva para onde se resolve.
@@ -665,8 +721,9 @@ var inicio = {
         } else if (i.tipo === 'texto' && !(i.letra || '').trim()) semArquivo.push({i: i, nome: nome});
       });
       if (!c.itens.length) l.push({icone: 'list', texto: 'Roteiro vazio', sub: 'Monte o roteiro do culto', botao: 'Abrir roteiro', acao: 'culto', dados: c.id});
-      if (semVertical.length) l.push({icone: 'mobile', texto: semVertical.length === 1 ? '1 item sem versão vertical' : semVertical.length + ' itens sem versão vertical',
-        sub: semVertical.map(function(x){ return x.nome; }).join(' · '), botao: 'Colocar vertical', acao: 'item', dados: c.id + '|' + semVertical[0].i.id, principal: true});
+      var aPedir = semVertical.filter(function(x){ return !vert.pedido(c, x.i); });
+      if (aPedir.length) l.push({icone: 'mobile', texto: aPedir.length === 1 ? '1 item sem versão vertical' : aPedir.length + ' itens sem versão vertical',
+        sub: aPedir.map(function(x){ return x.nome; }).join(' · '), botao: 'Pedir vertical', acao: 'pedirVertical', dados: c.id + '|' + aPedir.map(function(x){ return x.i.id; }).join(','), principal: true});
       if (semArquivo.length) l.push({icone: 'file', texto: semArquivo.length === 1 ? '1 item sem arquivo ou texto' : semArquivo.length + ' itens sem arquivo ou texto',
         sub: semArquivo.map(function(x){ return x.nome; }).join(' · '), botao: 'Abrir', acao: 'item', dados: c.id + '|' + semArquivo[0].i.id});
       if (equipe.pessoas.length) {
@@ -721,7 +778,8 @@ var inicio = {
       t.push('Escala ' + cheias + '/' + vagas.length);
     }
     var midia = c.itens.filter(function(i){ return (i.tipo === 'imagem' || i.tipo === 'video') && i.destino === 'midia'; });
-    if (midia.length) t.push('Verticais ' + midia.filter(function(i){ return lerDrive(i.vertical).estado === 'ok'; }).length + '/' + midia.length);
+    if (midia.length) { var nPed = midia.filter(function(i){ return lerDrive(i.vertical).estado !== 'ok' && vert.pedido(c, i); }).length;
+      t.push('Verticais ' + midia.filter(function(i){ return lerDrive(i.vertical).estado === 'ok'; }).length + '/' + midia.length + (nPed ? ' · ' + nPed + ' pedida' + (nPed === 1 ? '' : 's') : '')); }
     var arq = c.itens.filter(function(i){ return i.tipo === 'imagem' || i.tipo === 'video'; });
     if (arq.length) t.push('Arquivos ' + arq.filter(function(i){ return lerDrive(i.link).estado === 'ok'; }).length + '/' + arq.length);
     var u = ultima(c);
@@ -779,6 +837,7 @@ var inicio = {
       var f = document.getElementById('iVertical') || document.getElementById('iLink') || document.getElementById('iLetra'); if (f) f.focus(); return; }
     if (a === 'escala') { ui.cultoId = d; ui.eventoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; render(); return equipe.abrir('escala'); }
     if (a === 'tarefa') return plano.abrirTarefa(d);
+    if (a === 'pedirVertical') { var pv = d.split('|'); return vert.pedir(pv[0], pv[1].split(',')); }
     if (a === 'evento') { ui.eventoId = d; ui.cultoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'roteiro'; return render(); }
     if (a === 'post') { ui.redes = true; ui.postId = d; ui.cultoId = null; ui.eventoId = null; ui.itemId = null; ui.tarefaId = null; ui.view = 'item';
       var po = redes.post(d); if (po && po.data) { var dd = new Date(po.data + 'T12:00'); dd.setDate(dd.getDate() - dd.getDay()); ui.semana = iso(dd); } return render(); }
@@ -1165,7 +1224,12 @@ function renderEditor(){
     h += '<div class="field"><label for="iLink">Link do arquivo no Google Drive' + (i.tipo === 'imagem' ? ' · imagem ou PDF (o PDF vira páginas no telão)' : '') + '</label><input id="iLink" inputmode="url" value="' + esc(i.link) + '" placeholder="https://drive.google.com/file/d/...">' +
       '<div class="msg" id="linkMsg"></div>' +
       '<div class="msg muted">No Drive: botão direito no arquivo › Compartilhar › Acesso geral: <b>Qualquer pessoa com o link</b>. Sem isso a Projeção não consegue baixar.</div></div>';
-    if (i.destino === 'midia') h += '<div class="field"><label for="iVertical">Versão vertical (9:16, para a transmissão vertical) · link do Drive</label><input id="iVertical" inputmode="url" value="' + esc(i.vertical || '') + '" placeholder="https://drive.google.com/file/d/..."><div class="msg" id="verticalMsg"></div></div>';
+    if (i.destino === 'midia') {
+      var ped = nuvem.user && vert.pedido(c, i);
+      h += '<div class="field"><label for="iVertical">Versão vertical (9:16, para a transmissão vertical) · link do Drive</label><input id="iVertical" inputmode="url" value="' + esc(i.vertical || '') + '" placeholder="https://drive.google.com/file/d/..."><div class="msg" id="verticalMsg"></div>' +
+        (nuvem.user && lerDrive(i.vertical).estado !== 'ok' ? (ped ? '<button class="btn link small" data-pl="tarefa" data-id="' + esc(ped.id) + '" style="align-self:flex-start;padding:0">Pedida para ' + esc(inicio.nome(ped.pessoa) || 'a Produção') + (ped.prazo ? ' · até ' + esc(ped.prazo.slice(8, 10) + '/' + ped.prazo.slice(5, 7)) : '') + ' · ' + esc(ESTADO_DEMANDA[plano.estado(ped)].toLowerCase()) + ' ›</button>' :
+          (lerDrive(i.link).estado === 'ok' ? '<button class="btn small" data-ini="pedirVertical" data-d="' + esc(c.id + '|' + i.id) + '" style="align-self:flex-start">Pedir vertical para a equipe</button>' : '')) : '') + '</div>';
+    }
   }
   h += '<div class="field"><label for="iObs">Observação para o operador</label><input id="iObs" value="' + esc(i.obs) + '" placeholder="Ex.: repetir o refrão no fim"></div>';
   el.innerHTML = h;
@@ -2123,7 +2187,7 @@ var plano = {
       (plano.estado(d) === 'ajustar' && d.retorno ? 'O que mudar: ' + d.retorno + '\n' : '') + 'Veja e entregue por aqui: ' + linkPessoal(p.id);
     window.open('https://wa.me/' + whats(p.whatsapp) + '?text=' + encodeURIComponent(texto), '_blank', 'noopener');
   },
-  aprovar: function(d){ var agora = new Date().toISOString(); plano.salvarDemanda(Object.assign({}, d, {estado: 'pronto', estadoEm: agora, aprovadoEm: agora}), d); toast('Aprovada.' + (plano.entrega(d) && plano.entrega(d).url ? ' O link entrou nos materiais.' : '')); },
+  aprovar: function(d){ var agora = new Date().toISOString(); plano.salvarDemanda(Object.assign({}, d, {estado: 'pronto', estadoEm: agora, aprovadoEm: agora}), d); var vx = vert.aprovada(d); toast('Aprovada.' + (vx || (plano.entrega(d) && plano.entrega(d).url ? ' O link entrou nos materiais.' : ''))); },
   pedirAjuste: function(d){
     dialogo('Pedir ajuste', 'O que precisa mudar?<input id="ajTexto" style="width:100%;margin-top:8px;background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:8px;color:var(--text)">', 'Pedir ajuste', function(){});
     var inp = document.getElementById('ajTexto'), ok = inp.closest('.dialog').querySelector('[data-ok]'); inp.focus();
@@ -2643,7 +2707,7 @@ document.addEventListener('click', function(e){
   var t = e.target;
   if (t.closest('#novoCulto')) return novoCulto();
   var rb2 = t.closest('[data-rp]'); if (rb2) return redes.acao(rb2);
-  if (t.closest('[data-ini],[data-culto],[data-evento]')) ui.redes = false;
+  if (t.closest('[data-culto],[data-evento]') || (t.closest('[data-ini]') && t.closest('[data-ini]').dataset.ini !== 'pedirVertical')) ui.redes = false;
   var ib = t.closest('[data-ini]'); if (ib) return inicio.acao(ib);
   var nb = t.closest('[data-nav]');
   if (nb) {
